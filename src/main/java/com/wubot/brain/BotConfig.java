@@ -9,7 +9,7 @@ public final class BotConfig {
     // === Safety thresholds ===
 
     /** HP percentage to trigger flee */
-    public static final float FLEE_HP_PERCENT = 1.01f;
+    public static final float FLEE_HP_PERCENT = 0.5f;
 
     /** HP percentage for critical state */
     public static final float CRITICAL_HP_PERCENT = 0.15f;

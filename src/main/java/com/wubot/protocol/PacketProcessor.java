@@ -430,11 +430,25 @@ public class PacketProcessor {
         map.setMapName(packet.name);
         map.setSize(packet.width, packet.height);
 
-        // Set safe zone at space station position
-        log.info("MapInfo: spaceStation={}, ssx={}, ssy={}", packet.spaceStation, packet.ssx, packet.ssy);
-        if (packet.spaceStation) {
-            // Assume safe zone radius of 500 (typical value)
+        // Set safe zone position - priority: space station > nearest portal
+        log.info("MapInfo: spaceStation={}, ssx={}, ssy={}, teleports={}", 
+                 packet.spaceStation, packet.ssx, packet.ssy, 
+                 packet.teleports != null ? packet.teleports.length : 0);
+        
+        if (packet.spaceStation && (packet.ssx > 0 || packet.ssy > 0)) {
+            // Space station is the safe zone
             map.setSafeZone(packet.ssx, packet.ssy, 500f);
+            log.info("Safe zone set to space station: ({}, {})", packet.ssx, packet.ssy);
+        } else if (packet.teleports != null && packet.teleports.length > 0) {
+            // Use first portal as safe zone (portals are safe zones on allied maps)
+            // In the future, could find nearest portal to player position
+            MapInfoPacket.TPort firstPortal = packet.teleports[0];
+            map.setSafeZone(firstPortal.x, firstPortal.y, 300f);
+            log.info("Safe zone set to portal: ({}, {})", firstPortal.x, firstPortal.y);
+        } else {
+            // No safe zone available - use map center as fallback
+            map.setSafeZone(packet.width / 2f, packet.height / 2f, 0f);
+            log.warn("No safe zone found, using map center: ({}, {})", packet.width / 2f, packet.height / 2f);
         }
 
         // Clear entities on map change
