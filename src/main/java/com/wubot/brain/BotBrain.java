@@ -163,6 +163,23 @@ public class BotBrain {
             float mapWidth = world.getMapWidth();
             float mapHeight = world.getMapHeight();
             
+            // If map dimensions not available yet, use default patrol around current position
+            if (mapWidth <= 0 || mapHeight <= 0) {
+                float playerX = world.getPlayerX();
+                float playerY = world.getPlayerY();
+                // Patrol in a 2000px radius around current position
+                float radius = 2000f;
+                float angle = (float) (Math.random() * 2 * Math.PI);
+                patrolTargetX = playerX + (float) Math.cos(angle) * radius * (0.5f + (float) Math.random() * 0.5f);
+                patrolTargetY = playerY + (float) Math.sin(angle) * radius * (0.5f + (float) Math.random() * 0.5f);
+                // Keep coordinates positive
+                patrolTargetX = Math.max(100, patrolTargetX);
+                patrolTargetY = Math.max(100, patrolTargetY);
+                lastPatrolTime = now;
+                log.info("[PATROL] New patrol target (no map info): ({}, {})", patrolTargetX, patrolTargetY);
+                return;
+            }
+            
             // Stay away from edges (10% margin)
             float margin = 0.1f;
             patrolTargetX = mapWidth * (margin + (float) Math.random() * (1 - 2 * margin));
