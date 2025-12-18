@@ -167,12 +167,22 @@ public class CombatBrain {
      * Select best target NPC.
      * IMPORTANT: HP is NOT visible until after LOCK, so we select by distance and type only!
      * Scoring: closer = better, more boxes nearby = better
+     * 
+     * FILTER: Only select entities with npcType >= 3 (confirmed NPCs).
+     * ENTITY_TYPE=2 are other objects (drones, etc.) that should not be targeted.
      */
     public NpcEntity selectTarget(WorldSnapshot world) {
         NpcEntity bestTarget = null;
         float bestScore = Float.NEGATIVE_INFINITY;
 
         for (NpcEntity npc : world.getNpcs()) {
+            // CRITICAL: Only target confirmed NPCs (npcType >= 3)
+            // ENTITY_TYPE=2 are drones/objects with small HP (like 200) - skip them!
+            if (npc.getNpcType() < 3) {
+                log.trace("Skipping non-NPC entity: id={} npcType={}", npc.getId(), npc.getNpcType());
+                continue;
+            }
+            
             // Do NOT filter by isDead() - hp=0/0 before lock is normal!
             // Only skip if we confirmed it's dead (maxHp > 0 && hp = 0)
             if (npc.getMaxHp() > 0 && npc.getHp() <= 0) {
@@ -181,8 +191,8 @@ public class CombatBrain {
             }
 
             float score = scoreTarget(npc, world);
-            log.debug("Target candidate: {} at distance {}, score: {}",
-                     npc, world.distanceTo(npc.getX(), npc.getY()), score);
+            log.debug("Target candidate: id={} npcType={} at distance {}, score: {}",
+                     npc.getId(), npc.getNpcType(), world.distanceTo(npc.getX(), npc.getY()), score);
 
             if (score > bestScore) {
                 bestScore = score;
@@ -191,8 +201,11 @@ public class CombatBrain {
         }
 
         if (bestTarget != null) {
-            log.info("Selected target: {} at distance {}",
-                    bestTarget, world.distanceTo(bestTarget.getX(), bestTarget.getY()));
+            log.info("Selected target: id={} npcType={} at distance {}",
+                    bestTarget.getId(), bestTarget.getNpcType(), 
+                    world.distanceTo(bestTarget.getX(), bestTarget.getY()));
+        } else {
+            log.debug("No valid NPC targets found (need npcType >= 3)");
         }
 
         return bestTarget;

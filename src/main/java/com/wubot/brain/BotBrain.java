@@ -107,6 +107,12 @@ public class BotBrain {
         transitionTo(BotState.FARMING);
     }
 
+    // Patrol state for when no targets/boxes are found
+    private float patrolTargetX = -1;
+    private float patrolTargetY = -1;
+    private long lastPatrolTime = 0;
+    private static final long PATROL_INTERVAL_MS = 8000; // Change patrol point every 8 seconds
+    
     private void decideFarming(WorldSnapshot world, List<Action> actions) {
         log.trace("FARMING state - combat + collection");
 
@@ -114,7 +120,8 @@ public class BotBrain {
         shipManager.updateCurrentCargo(world.getCargoUsed(), world.getCargoMax());
 
         // Check if cargo is full
-        if (shipManager.isCurrentCargoFull()) {
+        boolean cargoFull = shipManager.isCurrentCargoFull();
+        if (cargoFull) {
             if (shipManager.hasAvailableShip()) {
                 // Switch to another ship with cargo space
                 targetShip = shipManager.getNextAvailableShip();
@@ -122,8 +129,8 @@ public class BotBrain {
                 transitionTo(BotState.SWITCHING_SHIP);
                 return;
             } else {
-                // All ships full - continue farming without collecting
-                log.debug("All ships full - farming without collection");
+                // All ships full - continue farming, but only collect BONUS boxes
+                log.debug("All ships full - farming with bonus box collection only");
             }
         }
 
@@ -131,16 +138,51 @@ public class BotBrain {
         List<Action> combatActions = combatBrain.getActions(world);
         actions.addAll(combatActions);
 
-        // Collection actions (parallel with combat!) - only if cargo space available
-        if (!shipManager.isCurrentCargoFull()) {
-            List<Action> collectActions = collectBrain.getActions(world);
-            actions.addAll(collectActions);
-        }
+        // Collection actions (parallel with combat!)
+        // ALWAYS call CollectBrain - it handles cargo full internally (only collects BONUS boxes when full)
+        List<Action> collectActions = collectBrain.getActions(world);
+        actions.addAll(collectActions);
 
-        // If no combat target and no boxes, stay idle briefly
-        if (combatActions.isEmpty()) {
-            log.debug("No targets found");
+        // If no combat target and no collection happening, patrol the map
+        if (combatActions.isEmpty() && collectActions.isEmpty()) {
+            log.debug("No targets or boxes found - patrolling");
+            addPatrolAction(world, actions);
         }
+    }
+    
+    /**
+     * Add patrol action to move to a random point on the map.
+     * Changes patrol target every PATROL_INTERVAL_MS.
+     */
+    private void addPatrolAction(WorldSnapshot world, List<Action> actions) {
+        long now = System.currentTimeMillis();
+        
+        // Check if we need a new patrol target
+        if (patrolTargetX < 0 || now - lastPatrolTime > PATROL_INTERVAL_MS) {
+            // Generate new random patrol point within map bounds
+            float mapWidth = world.getMapWidth();
+            float mapHeight = world.getMapHeight();
+            
+            // Stay away from edges (10% margin)
+            float margin = 0.1f;
+            patrolTargetX = mapWidth * (margin + (float) Math.random() * (1 - 2 * margin));
+            patrolTargetY = mapHeight * (margin + (float) Math.random() * (1 - 2 * margin));
+            lastPatrolTime = now;
+            
+            log.info("[PATROL] New patrol target: ({}, {})", patrolTargetX, patrolTargetY);
+        }
+        
+        // Check if we're close to patrol target
+        float distToTarget = world.distanceTo(patrolTargetX, patrolTargetY);
+        if (distToTarget < 200) {
+            // Reached target, will get new one next tick
+            patrolTargetX = -1;
+            log.debug("[PATROL] Reached patrol target, will select new one");
+            return;
+        }
+        
+        // Move towards patrol target
+        actions.add(new Action.Move(patrolTargetX, patrolTargetY));
     }
 
     private void decideCollecting(WorldSnapshot world, List<Action> actions) {
