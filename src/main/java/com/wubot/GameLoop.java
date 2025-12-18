@@ -168,8 +168,9 @@ public class GameLoop {
         WorldSnapshot snapshot = world.snapshot();
         discovery.onMapInfo(mapInfo, snapshot.getPlayerX(), snapshot.getPlayerY());
 
-        // Save discovery data on map change (don't wait for 5-minute autosave)
-        discovery.saveAll();
+        // Force save discovery data on map change (don't wait for 5-minute autosave)
+        // Use forceSave() instead of saveAll() to ensure data is saved even if dirty=false
+        discovery.forceSave();
         log.info("Discovery data saved on map change: {}", discovery.getSummary());
 
         // Update navigation brain with portal data

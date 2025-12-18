@@ -29,6 +29,9 @@ public class PersistenceManager {
 
         // Ensure data directory exists
         ensureDataDirectory();
+        
+        // Log absolute path so user knows where data is saved
+        log.info("Discovery data directory: {}", dataPath.toAbsolutePath());
     }
 
     /**

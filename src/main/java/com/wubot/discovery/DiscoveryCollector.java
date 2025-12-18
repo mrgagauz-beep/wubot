@@ -105,6 +105,7 @@ public class DiscoveryCollector {
      */
     public void onNpcKilled(int npcType) {
         npcs.recordKill(npcType);
+        dirty = true;  // Kill stats should be saved
     }
 
     /**
