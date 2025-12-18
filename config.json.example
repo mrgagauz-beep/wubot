@@ -1,0 +1,19 @@
+{
+  "connection": {
+    "serverHost": "eu.server.waruniverse.space",
+    "serverPort": 43431,
+    "username": "YOUR_USERNAME",
+    "password": "YOUR_PASSWORD",
+
+    "apiHost": "eu.api.waruniverse.space",
+    "apiPort": 443,
+
+    "token": "",
+    "deviceId": "your-device-id-here",
+
+    "clientVersion": [1, 233, 0],
+    "platform": "Desktop",
+    "systemLocale": "en_US",
+    "preferredLocale": "en"
+  }
+}

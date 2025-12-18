@@ -1,0 +1,166 @@
+# WuBot Project - CLI Rules
+
+## Роль CLI
+
+CLI — полноценный исполнитель. Получает задание от Архитектора, выполняет ВЕСЬ цикл:
+код → коммит → билд → тест → анализ логов → отчёт.
+
+---
+
+## ПОЛНЫЙ ЦИКЛ ВЫПОЛНЕНИЯ ЗАДАНИЯ
+
+### 1. Изменения кода
+```
+- Прочитать релевантные файлы
+- Выполнить точечные правки (str_replace / edit_file)
+- Для НОВЫХ файлов — write_file
+```
+
+### 2. Коммит
+```bash
+git add -A && git commit -m "описание изменений"
+```
+
+### 3. Сборка
+```bash
+./gradlew build
+# Если ошибка — исправить и повторить
+```
+
+### 4. Тестирование (если задание касается runtime)
+```bash
+# Запустить бота
+./gradlew run
+
+# Дождаться логов (10-30 секунд в зависимости от теста)
+# Остановить бота (Ctrl+C)
+```
+
+### 5. Анализ логов
+```bash
+# Прочитать логи
+type logs\wubot-current.log
+
+# Или искать конкретные паттерны
+type logs\wubot-current.log | findstr /i "паттерн"
+```
+
+### 6. Отчёт Архитектору
+```
+## Выполнено
+- [список изменений]
+
+## Коммит  
+- [hash] [message]
+
+## Сборка
+- ✅ УСПЕХ / ❌ ОШИБКА
+
+## Тест
+- ✅ РАБОТАЕТ / ❌ НЕ РАБОТАЕТ
+- Логи:
+  ```
+  [доказательства из логов]
+  ```
+
+## Итог
+✅ ЗАДАНИЕ ВЫПОЛНЕНО / ❌ ТРЕБУЕТСЯ ДОРАБОТКА
+```
+
+---
+
+## КРИТИЧЕСКИЕ ПРАВИЛА
+
+### Редактирование файлов
+```
+❌ ЗАПРЕЩЕНО: write_file на существующий файл
+❌ ЗАПРЕЩЕНО: Переписывать файлы заново
+✅ РАЗРЕШЕНО: str_replace / edit_file
+✅ РАЗРЕШЕНО: write_file для НОВЫХ файлов
+```
+
+### Коммиты
+```
+✅ ОБЯЗАТЕЛЬНО после КАЖДОГО логического изменения
+✅ Осмысленные сообщения
+```
+
+### Документация (docs/)
+```
+❌ ЗАПРЕЩЕНО: Переписывать с нуля
+✅ РАЗРЕШЕНО: Точечные правки, дополнения
+```
+
+---
+
+## Критерии успеха по функциям
+
+| Функция | Лог-паттерн УСПЕХА | Лог-паттерн ОШИБКИ |
+|---------|-------------------|-------------------|
+| Подключение | `Connected to server` | `Connection failed`, `timeout` |
+| Авторизация | `Auth successful` | `Auth failed`, `invalid token` |
+| Вход на карту | `MapInfo received` | `Map connect failed` |
+| Фарм NPC | `Locked NPC`, `Attack started` | `No targets`, `Lock failed` |
+| Убийство NPC | `NPC destroyed`, `Target killed` | - |
+| Сбор боксов | `Collecting box`, `Box collected` | `Collection failed` |
+| Discovery порталов | `Portal discovered`, `Portal link saved` | - |
+| Discovery NPC | `NPC type recorded` | - |
+| Смена конфига | `Config switched` | `Config switch failed` |
+| Телепорт | `Teleport success` | `Teleport failed` |
+| Побег | `Fleeing`, `Reached safe zone` | `No safe zone` |
+| Патруль | `Patrolling`, `Moving to point` | - |
+
+---
+
+## Команды
+
+```bash
+# Сборка
+./gradlew build
+
+# Запуск бота
+./gradlew run
+
+# Чтение логов (Windows)
+type logs\wubot-current.log
+
+# Поиск в логах
+type logs\wubot-current.log | findstr /i "error"
+type logs\wubot-current.log | findstr /i "collected"
+
+# Последние N строк
+powershell -Command "Get-Content logs\wubot-current.log -Tail 100"
+
+# Git
+git add -A && git commit -m "сообщение"
+git log -1 --oneline
+```
+
+---
+
+## Примеры коммитов
+
+```
+fix: исправлен Y_OFFSET для сбора боксов
+feat: добавлено логирование в CollectBrain
+refactor: оптимизирован поиск NPC
+docs: обновлён статус в IMPLEMENTATION_PLAN
+```
+
+---
+
+## Запрещено
+
+❌ Пропускать коммиты
+❌ Игнорировать ошибки сборки
+❌ Отвечать без проверки (если задание требует теста)
+❌ Переписывать файлы целиком
+❌ Удалять код без явного указания
+
+## Разрешено
+
+✅ Точечные правки кода
+✅ Создание новых файлов
+✅ Запуск билдов и бота
+✅ Анализ логов любого размера
+✅ Многократные итерации до успеха

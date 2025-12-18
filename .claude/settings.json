@@ -1,0 +1,15 @@
+{
+  "allowedTools": [
+    "Bash",
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "WebFetch",
+    "WebSearch"
+  ],
+  "projectDescription": "Java бот для игры WarUniverse с FSM архитектурой",
+  "autoCommit": false,
+  "preferredLanguage": "ru"
+}

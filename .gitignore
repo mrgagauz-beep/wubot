@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Config with credentials
+config.json
+
+# Test outputs
+*_test.txt
+*_debug.txt
+*_output*.txt
+nul
+
+# Python
+__pycache__/
+*.pyc
+
+# Claude local settings
+.claude/settings.local.json
