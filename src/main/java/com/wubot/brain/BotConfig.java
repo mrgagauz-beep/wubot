@@ -17,16 +17,22 @@ public final class BotConfig {
     /** Detection range for enemy players */
     public static final float ENEMY_DETECTION_RANGE = 2000f;
 
+    // === Attack range ===
+    
+    /** Default attack range - must be within this distance to deal damage */
+    public static final float ATTACK_RANGE = 700f;
+
     // === Kite distances (orbit distance from target) ===
+    // NOTE: Kite distance must be LESS than attack range to deal damage!
 
     /** Kite distance for boss NPCs (HP >= 500k) */
-    public static final float KITE_DISTANCE_BOSS = 850f;
+    public static final float KITE_DISTANCE_BOSS = 650f;
 
     /** Kite distance for medium NPCs (HP >= 70k) */
-    public static final float KITE_DISTANCE_MEDIUM = 800f;
+    public static final float KITE_DISTANCE_MEDIUM = 600f;
 
     /** Kite distance for weak NPCs (HP < 70k) */
-    public static final float KITE_DISTANCE_WEAK = 750f;
+    public static final float KITE_DISTANCE_WEAK = 550f;
 
     /** HP threshold for boss classification */
     public static final int BOSS_HP_THRESHOLD = 500_000;

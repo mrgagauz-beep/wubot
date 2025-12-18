@@ -16,14 +16,20 @@ public final class ParamId {
     public static final int POSITION = 17;
     public static final int SPEED = 37;  // Verified from packet analysis (NPC speed as float)
 
-    // Health (NPC)
-    // Note: ParamId 24/31 appear to be scaled/UI values (e.g., 110/200)
-    // ParamId 34 contains the real absolute HP value (e.g., 2000)
-    public static final int HP = 24;          // NPC HP (scaled)
-    public static final int MAX_HP = 31;      // NPC Max HP (scaled)
-    public static final int NPC_REAL_HP = 34; // NPC real absolute HP (e.g., 2000 for weak NPCs)
+    // Health - REAL HP values (both NPC and Player use ParamId 25/26)
+    // Discovered from packet analysis: Hydro NPC has ParamId 25=800, ParamId 26=800
+    // This matches documentation "Hydro ~800-1000 HP"
+    public static final int HP = 25;          // Real HP (both NPC and Player)
+    public static final int MAX_HP = 26;      // Real Max HP (both NPC and Player)
+    
+    // UI Scale values (NOT real HP - do not use for HP tracking)
+    // ParamId 24/31 are scaled UI values (e.g., 110/200 for Hydro)
+    // ParamId 34 is unknown (e.g., 2000) - NOT HP
+    public static final int UI_HP_SCALE = 24;      // UI scale value (not real HP)
+    public static final int UI_MAX_HP_SCALE = 31;  // UI scale value (not real HP)
+    public static final int UNKNOWN_34 = 34;       // Unknown value (not HP)
 
-    // Health (Player)
+    // Aliases for clarity (deprecated - use HP/MAX_HP instead)
     public static final int PLAYER_HP = 25;
     public static final int PLAYER_MAX_HP = 26;
 

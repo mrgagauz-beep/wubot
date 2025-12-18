@@ -107,6 +107,14 @@ public class PacketProcessor {
      * Process a ship from GameStateResponsePacket.
      */
     private void processShip(GameStateResponsePacket.ShipInResponse ship, World world) {
+        // Log damages and restores arrays - these might contain HP information!
+        if (ship.damages != null && ship.damages.length > 0) {
+            log.info("[SHIP {}] DAMAGES array: {}", ship.id, java.util.Arrays.toString(ship.damages));
+        }
+        if (ship.restores != null && ship.restores.length > 0) {
+            log.info("[SHIP {}] RESTORES array: {}", ship.id, java.util.Arrays.toString(ship.restores));
+        }
+        
         if (ship.changes == null || ship.changes.length == 0) {
             return;
         }
@@ -227,13 +235,18 @@ public class PacketProcessor {
 
     /**
      * Apply a parameter change to NPC.
+     * 
+     * IMPORTANT: NPC HP uses ParamId 25/26 (same as players), NOT 24/31!
+     * ParamId 24/31 are UI scale values (e.g., 110/200) - NOT real HP.
+     * Discovered from packet analysis: Hydro NPC has ParamId 25=800, ParamId 26=800.
      */
     private void applyNpcChange(NpcEntity npc, ChangedParameter change) {
         if (change.data == null) return;
 
-        // DEBUG: Log parameter changes for NPCs
-        log.debug("[NPC {}] Param id={}, data={} (type={})",
-            npc.getId(), change.id, change.data, change.data.getClass().getSimpleName());
+        int newValue = 0;
+        if (change.data instanceof Number) {
+            newValue = ((Number) change.data).intValue();
+        }
 
         try {
             if (change.id == ParamId.POSITION) {
@@ -242,32 +255,57 @@ public class PacketProcessor {
                     npc.setPosition(pos[0], pos[1]);
                 }
             } else if (change.id == ParamId.HP) {
-                // ParamId 24 is scaled HP (e.g., 110/200) - we use this for current HP ratio
-                int scaledHp = ((Number) change.data).intValue();
-                npc.setHp(scaledHp);
-                log.debug("[NPC {}] Scaled HP set to {}", npc.getId(), scaledHp);
+                // ParamId 25 - REAL HP (same as players)
+                int oldVal = npc.getHp();
+                npc.setHp(newValue);
+                if (oldVal != newValue) {
+                    log.info("[HP CHANGE] NPC {} - HP: {} -> {} (delta={})", 
+                        npc.getId(), oldVal, newValue, newValue - oldVal);
+                }
             } else if (change.id == ParamId.MAX_HP) {
-                // ParamId 31 is scaled MAX_HP (e.g., 200) - we use this for HP ratio calculation
-                int scaledMaxHp = ((Number) change.data).intValue();
-                npc.setMaxHp(scaledMaxHp);
-                log.debug("[NPC {}] Scaled MAX_HP set to {}", npc.getId(), scaledMaxHp);
-            } else if (change.id == ParamId.NPC_REAL_HP) {
-                // ParamId 34 is the real absolute MAX HP (e.g., 2000 for weak NPCs)
-                // This is the actual HP value the user expects (800+ for weak NPCs)
-                int realMaxHp = ((Number) change.data).intValue();
-                npc.setRealMaxHp(realMaxHp);
-                log.info("[NPC {}] Real Max HP = {} (effective HP: {}/{})", 
-                    npc.getId(), realMaxHp, npc.getEffectiveHp(), npc.getEffectiveMaxHp());
+                // ParamId 26 - REAL MAX_HP (same as players)
+                int oldVal = npc.getMaxHp();
+                npc.setMaxHp(newValue);
+                if (oldVal != newValue) {
+                    log.info("[HP CHANGE] NPC {} - MAX_HP: {} -> {} (delta={})", 
+                        npc.getId(), oldVal, newValue, newValue - oldVal);
+                }
+            } else if (change.id == ParamId.UI_HP_SCALE) {
+                // ParamId 24 - UI scale value (NOT real HP, ignore for HP tracking)
+                log.trace("[UI SCALE] NPC {} - ParamId 24 (UI scale): {}", npc.getId(), newValue);
+            } else if (change.id == ParamId.UI_MAX_HP_SCALE) {
+                // ParamId 31 - UI scale value (NOT real HP, ignore for HP tracking)
+                log.trace("[UI SCALE] NPC {} - ParamId 31 (UI scale): {}", npc.getId(), newValue);
+            } else if (change.id == ParamId.SHIELD) {
+                // ParamId 27
+                int oldVal = npc.getShield();
+                npc.setShield(newValue);
+                if (oldVal != newValue) {
+                    log.info("[SHIELD CHANGE] NPC {} - Shield: {} -> {} (delta={})", 
+                        npc.getId(), oldVal, newValue, newValue - oldVal);
+                }
+            } else if (change.id == ParamId.MAX_SHIELD) {
+                // ParamId 28
+                int oldVal = npc.getMaxShield();
+                npc.setMaxShield(newValue);
+                if (oldVal != newValue) {
+                    log.info("[SHIELD CHANGE] NPC {} - Max Shield: {} -> {}", 
+                        npc.getId(), oldVal, newValue);
+                }
             } else if (change.id == ParamId.SPEED) {
                 npc.setSpeed(((Number) change.data).floatValue());
             } else if (change.id == ParamId.NPC_TYPE) {
-                npc.setNpcType(((Number) change.data).intValue());
-            } else if (change.id == ParamId.SHIELD) {
-                npc.setShield(((Number) change.data).intValue());
-                log.info("[NPC {}] Shield set to {}", npc.getId(), ((Number) change.data).intValue());
-            } else if (change.id == ParamId.MAX_SHIELD) {
-                npc.setMaxShield(((Number) change.data).intValue());
-                log.info("[NPC {}] MAX_SHIELD set to {}", npc.getId(), ((Number) change.data).intValue());
+                npc.setNpcType(newValue);
+            } else if (change.id == ParamId.UNKNOWN_34) {
+                // ParamId 34 - unknown value (NOT HP)
+                log.trace("[UNKNOWN] NPC {} - ParamId 34: {}", npc.getId(), newValue);
+            } else if (change.id == ParamId.ENTITY_TYPE) {
+                // ParamId 42 - entity type (3 = NPC)
+                log.trace("[ENTITY_TYPE] NPC {} - type: {}", npc.getId(), newValue);
+            } else {
+                // Log other parameter changes at trace level
+                log.trace("[OTHER PARAM] NPC {} - ParamId {}: value={}", 
+                    npc.getId(), change.id, change.data);
             }
         } catch (Exception e) {
             log.error("[NPC {}] Failed to apply change id={}: {} - {}", 

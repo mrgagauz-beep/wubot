@@ -95,16 +95,19 @@ public class CombatBrain {
             }
         }
 
-        // STATE 3: ATTACK - we have confirmed HP
+        // STATE 3: APPROACH & ATTACK - we have confirmed HP
         if (lockConfirmed && !target.isDead()) {
-            // Track damage confirmation using SCALED HP (ParamId 24/31)
+            // Track damage confirmation using REAL HP (ParamId 25/26)
             int currentHp = target.getHp();
             int currentShield = target.getShield();
             
-            // Log current HP status using EFFECTIVE HP (real values)
-            log.info("[HP TRACKING] Target {} - HP: {}/{} (scaled: {}/{}), Shield: {}/{}", 
-                target.getId(), target.getEffectiveHp(), target.getEffectiveMaxHp(),
-                currentHp, target.getMaxHp(), currentShield, target.getMaxShield());
+            // Calculate distance to target
+            float distanceToTarget = world.distanceTo(target.getX(), target.getY());
+            
+            // Log current HP status - ParamId 25/26 for HP, ParamId 27/28 for Shield
+            log.info("[TARGET STATUS] NPC {} - HP={}/{} Shield={}/{} Distance={}px", 
+                target.getId(), currentHp, target.getMaxHp(), 
+                currentShield, target.getMaxShield(), (int) distanceToTarget);
             
             if (lastKnownTargetHp >= 0) {
                 int hpDamage = lastKnownTargetHp - currentHp;
@@ -121,21 +124,32 @@ public class CombatBrain {
             lastKnownTargetHp = currentHp;
             lastKnownTargetShield = currentShield;
             
-            // Warn if no damage for too long (possible attack failure)
             long now = System.currentTimeMillis();
+            
+            // STATE 3a: APPROACH - fly to target if too far
+            if (distanceToTarget > BotConfig.ATTACK_RANGE) {
+                log.info("[COMBAT] Too far to attack ({}px > {}px), approaching target...", 
+                    (int) distanceToTarget, (int) BotConfig.ATTACK_RANGE);
+                // Move directly towards target
+                actions.add(new Action.Move(target.getX(), target.getY()));
+                return actions;
+            }
+            
+            // STATE 3b: ATTACK - we are in range
+            // Warn if no damage for too long (possible attack failure)
             if (lastDamageTime > 0 && now - lastDamageTime > 10000) {
                 log.warn("[COMBAT] No damage dealt for {}ms - attack may not be working!", 
                     now - lastDamageTime);
             }
             
-            // Attack periodically
+            // Attack periodically (send attack command every second to ensure it's active)
             if (now - lastAttackTime > 1000) {
-                log.debug("Attacking target: {} HP: {}/{}", target, target.getHp(), target.getMaxHp());
+                log.info("[COMBAT] Attacking target {} at distance {}px", target.getId(), (int) distanceToTarget);
                 actions.add(new Action.Attack());
                 lastAttackTime = now;
             }
 
-            // Calculate kite position and move
+            // Calculate kite position and move (stay within attack range!)
             float kiteDistance = getKiteDistance(target);
             float[] kitePos = calculateKitePosition(world, target, kiteDistance);
             actions.add(new Action.Move(kitePos[0], kitePos[1]));
