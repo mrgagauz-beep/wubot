@@ -176,9 +176,10 @@ public class CombatBrain {
         float bestScore = Float.NEGATIVE_INFINITY;
 
         for (NpcEntity npc : world.getNpcs()) {
-            // CRITICAL: Only target confirmed NPCs (npcType >= 3)
-            // ENTITY_TYPE=2 are drones/objects with small HP (like 200) - skip them!
-            if (npc.getNpcType() < 3) {
+            // CRITICAL: Only target confirmed NPCs (npcType > 0)
+            // npcType=0 means entity was not confirmed as NPC (ENTITY_TYPE != 3)
+            // npcType=1 = Hydro, npcType=2 = Hyper, npcType=3 = generic NPC
+            if (npc.getNpcType() <= 0) {
                 log.trace("Skipping non-NPC entity: id={} npcType={}", npc.getId(), npc.getNpcType());
                 continue;
             }

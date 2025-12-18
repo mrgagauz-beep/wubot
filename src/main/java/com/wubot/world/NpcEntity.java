@@ -8,7 +8,8 @@ public class NpcEntity {
     private final int id;
     private int npcType;
     private float x, y;
-    private int hp, maxHp;
+    private int hp, maxHp;        // Scaled HP values from ParamId 24/31 (e.g., 110/200)
+    private int realHp;           // Real absolute HP from ParamId 34 (e.g., 2000)
     private int shield, maxShield;
     private float speed;
     private long lastUpdateTime;
@@ -33,6 +34,9 @@ public class NpcEntity {
     public int getShield() { return shield; }
     public int getMaxShield() { return maxShield; }
     public float getSpeed() { return speed; }
+    
+    /** Get real absolute HP from ParamId 34 (e.g., 2000 for weak NPCs) */
+    public int getRealHp() { return realHp; }
 
     // === Setters ===
 
@@ -51,6 +55,9 @@ public class NpcEntity {
     public void setShield(int shield) { this.shield = shield; }
     public void setMaxShield(int maxShield) { this.maxShield = maxShield; }
     public void setSpeed(float speed) { this.speed = speed; }
+    
+    /** Set real absolute HP from ParamId 34 (e.g., 2000 for weak NPCs) */
+    public void setRealHp(int realHp) { this.realHp = realHp; }
     
     /** Check if stats have been recorded for discovery */
     public boolean isStatsRecorded() { return statsRecorded; }

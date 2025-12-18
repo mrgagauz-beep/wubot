@@ -242,11 +242,21 @@ public class PacketProcessor {
                     npc.setPosition(pos[0], pos[1]);
                 }
             } else if (change.id == ParamId.HP) {
-                npc.setHp(((Number) change.data).intValue());
-                log.info("[NPC {}] HP set to {}", npc.getId(), ((Number) change.data).intValue());
+                // ParamId 24 is scaled HP (e.g., 110/200) - we use this for current HP ratio
+                int scaledHp = ((Number) change.data).intValue();
+                npc.setHp(scaledHp);
+                log.debug("[NPC {}] Scaled HP set to {}", npc.getId(), scaledHp);
             } else if (change.id == ParamId.MAX_HP) {
-                npc.setMaxHp(((Number) change.data).intValue());
-                log.info("[NPC {}] MAX_HP set to {}", npc.getId(), ((Number) change.data).intValue());
+                // ParamId 31 is scaled MAX_HP (e.g., 200) - we use this for HP ratio calculation
+                int scaledMaxHp = ((Number) change.data).intValue();
+                npc.setMaxHp(scaledMaxHp);
+                log.debug("[NPC {}] Scaled MAX_HP set to {}", npc.getId(), scaledMaxHp);
+            } else if (change.id == ParamId.NPC_REAL_HP) {
+                // ParamId 34 is the real absolute HP (e.g., 2000 for weak NPCs)
+                // This is the actual HP value the user expects (800+ for weak NPCs)
+                int realHp = ((Number) change.data).intValue();
+                npc.setRealHp(realHp);
+                log.info("[NPC {}] Real HP = {} (this is the actual NPC health)", npc.getId(), realHp);
             } else if (change.id == ParamId.SPEED) {
                 npc.setSpeed(((Number) change.data).floatValue());
             } else if (change.id == ParamId.NPC_TYPE) {

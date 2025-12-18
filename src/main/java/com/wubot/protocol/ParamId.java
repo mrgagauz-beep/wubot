@@ -17,8 +17,11 @@ public final class ParamId {
     public static final int SPEED = 37;  // Verified from packet analysis (NPC speed as float)
 
     // Health (NPC)
-    public static final int HP = 24;          // NPC HP
-    public static final int MAX_HP = 31;      // NPC Max HP
+    // Note: ParamId 24/31 appear to be scaled/UI values (e.g., 110/200)
+    // ParamId 34 contains the real absolute HP value (e.g., 2000)
+    public static final int HP = 24;          // NPC HP (scaled)
+    public static final int MAX_HP = 31;      // NPC Max HP (scaled)
+    public static final int NPC_REAL_HP = 34; // NPC real absolute HP (e.g., 2000 for weak NPCs)
 
     // Health (Player)
     public static final int PLAYER_HP = 25;
