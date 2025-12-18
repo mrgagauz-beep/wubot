@@ -252,11 +252,12 @@ public class PacketProcessor {
                 npc.setMaxHp(scaledMaxHp);
                 log.debug("[NPC {}] Scaled MAX_HP set to {}", npc.getId(), scaledMaxHp);
             } else if (change.id == ParamId.NPC_REAL_HP) {
-                // ParamId 34 is the real absolute HP (e.g., 2000 for weak NPCs)
+                // ParamId 34 is the real absolute MAX HP (e.g., 2000 for weak NPCs)
                 // This is the actual HP value the user expects (800+ for weak NPCs)
-                int realHp = ((Number) change.data).intValue();
-                npc.setRealHp(realHp);
-                log.info("[NPC {}] Real HP = {} (this is the actual NPC health)", npc.getId(), realHp);
+                int realMaxHp = ((Number) change.data).intValue();
+                npc.setRealMaxHp(realMaxHp);
+                log.info("[NPC {}] Real Max HP = {} (effective HP: {}/{})", 
+                    npc.getId(), realMaxHp, npc.getEffectiveHp(), npc.getEffectiveMaxHp());
             } else if (change.id == ParamId.SPEED) {
                 npc.setSpeed(((Number) change.data).floatValue());
             } else if (change.id == ParamId.NPC_TYPE) {

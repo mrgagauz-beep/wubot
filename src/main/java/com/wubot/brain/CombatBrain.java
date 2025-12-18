@@ -97,9 +97,14 @@ public class CombatBrain {
 
         // STATE 3: ATTACK - we have confirmed HP
         if (lockConfirmed && !target.isDead()) {
-            // Track damage confirmation
+            // Track damage confirmation using SCALED HP (ParamId 24/31)
             int currentHp = target.getHp();
             int currentShield = target.getShield();
+            
+            // Log current HP status using EFFECTIVE HP (real values)
+            log.info("[HP TRACKING] Target {} - HP: {}/{} (scaled: {}/{}), Shield: {}/{}", 
+                target.getId(), target.getEffectiveHp(), target.getEffectiveMaxHp(),
+                currentHp, target.getMaxHp(), currentShield, target.getMaxShield());
             
             if (lastKnownTargetHp >= 0) {
                 int hpDamage = lastKnownTargetHp - currentHp;
@@ -109,7 +114,7 @@ public class CombatBrain {
                 if (totalDamage > 0) {
                     totalDamageDealt += totalDamage;
                     lastDamageTime = System.currentTimeMillis();
-                    log.info("[COMBAT] Damage confirmed: {} (hp:{} shield:{}) total={}", 
+                    log.info("[COMBAT] Damage confirmed: {} (scaledHp:{} shield:{}) totalScaledDamage={}", 
                         totalDamage, hpDamage, shieldDamage, totalDamageDealt);
                 }
             }

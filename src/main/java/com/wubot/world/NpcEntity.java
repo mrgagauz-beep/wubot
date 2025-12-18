@@ -9,7 +9,7 @@ public class NpcEntity {
     private int npcType;
     private float x, y;
     private int hp, maxHp;        // Scaled HP values from ParamId 24/31 (e.g., 110/200)
-    private int realHp;           // Real absolute HP from ParamId 34 (e.g., 2000)
+    private int realMaxHp;        // Real absolute max HP from ParamId 34 (e.g., 2000 for weak NPCs)
     private int shield, maxShield;
     private float speed;
     private long lastUpdateTime;
@@ -35,8 +35,28 @@ public class NpcEntity {
     public int getMaxShield() { return maxShield; }
     public float getSpeed() { return speed; }
     
-    /** Get real absolute HP from ParamId 34 (e.g., 2000 for weak NPCs) */
-    public int getRealHp() { return realHp; }
+    /** Get real absolute max HP from ParamId 34 (e.g., 2000 for weak NPCs) */
+    public int getRealMaxHp() { return realMaxHp; }
+    
+    /**
+     * Get effective max HP - the real HP value to display.
+     * Uses realMaxHp if available, otherwise falls back to scaled maxHp.
+     */
+    public int getEffectiveMaxHp() {
+        return realMaxHp > 0 ? realMaxHp : maxHp;
+    }
+    
+    /**
+     * Get effective current HP - calculated from scaled HP using the ratio.
+     * Formula: effectiveHp = scaledHp * (realMaxHp / scaledMaxHp)
+     * This gives the real HP value that matches what the user sees in game.
+     */
+    public int getEffectiveHp() {
+        if (realMaxHp > 0 && maxHp > 0) {
+            return Math.round((float) hp * realMaxHp / maxHp);
+        }
+        return hp;
+    }
 
     // === Setters ===
 
@@ -56,8 +76,8 @@ public class NpcEntity {
     public void setMaxShield(int maxShield) { this.maxShield = maxShield; }
     public void setSpeed(float speed) { this.speed = speed; }
     
-    /** Set real absolute HP from ParamId 34 (e.g., 2000 for weak NPCs) */
-    public void setRealHp(int realHp) { this.realHp = realHp; }
+    /** Set real absolute max HP from ParamId 34 (e.g., 2000 for weak NPCs) */
+    public void setRealMaxHp(int realMaxHp) { this.realMaxHp = realMaxHp; }
     
     /** Check if stats have been recorded for discovery */
     public boolean isStatsRecorded() { return statsRecorded; }
@@ -113,7 +133,8 @@ public class NpcEntity {
 
     @Override
     public String toString() {
+        // Display effective HP (real values) instead of scaled values
         return String.format("NPC{id=%d, type=%d, pos=(%.0f,%.0f), hp=%d/%d, shield=%d/%d}",
-                id, npcType, x, y, hp, maxHp, shield, maxShield);
+                id, npcType, x, y, getEffectiveHp(), getEffectiveMaxHp(), shield, maxShield);
     }
 }
