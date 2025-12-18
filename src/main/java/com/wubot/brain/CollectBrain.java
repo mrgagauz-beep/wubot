@@ -27,6 +27,13 @@ public class CollectBrain {
     private long collectStartTime = 0;
     private boolean waitingForArrival = false;
     private float targetX, targetY;
+    
+    // Collection confirmation tracking
+    private int lastKnownCargoUsed = -1;
+    private int successfulCollections = 0;
+    private int failedCollections = 0;
+    private long lastCollectSentTime = 0;
+    private Integer lastCollectBoxId = null;
 
     /**
      * Get collection actions for current tick.
@@ -36,6 +43,24 @@ public class CollectBrain {
      */
     public List<Action> getActions(WorldSnapshot world) {
         List<Action> actions = new ArrayList<>();
+
+        // Track collection confirmation via cargo changes
+        int currentCargo = world.getCargoUsed();
+        if (lastKnownCargoUsed >= 0 && lastCollectBoxId != null) {
+            if (currentCargo > lastKnownCargoUsed) {
+                successfulCollections++;
+                log.info("[COLLECT] Collection confirmed! cargo {} -> {} (success={})", 
+                    lastKnownCargoUsed, currentCargo, successfulCollections);
+                lastCollectBoxId = null;
+            } else if (System.currentTimeMillis() - lastCollectSentTime > 3000) {
+                // Timeout - collection may have failed
+                failedCollections++;
+                log.warn("[COLLECT] Collection timeout for box {} (failed={})", 
+                    lastCollectBoxId, failedCollections);
+                lastCollectBoxId = null;
+            }
+        }
+        lastKnownCargoUsed = currentCargo;
 
         // If cargo is full, only collect BONUS_BOX
         boolean cargoFull = world.isCargoFull();
@@ -59,6 +84,11 @@ public class CollectBrain {
                 // Arrived or waited long enough - collect!
                 log.debug("Collecting box {} (dist={}, waited={}ms)", collectingBoxId, distToTarget, elapsed);
                 actions.add(new Action.Collect(collectingBoxId, box.getX(), box.getY()));
+                
+                // Track for confirmation
+                lastCollectBoxId = collectingBoxId;
+                lastCollectSentTime = System.currentTimeMillis();
+                
                 resetCollection();
             }
 
@@ -141,5 +171,19 @@ public class CollectBrain {
             log.debug("Collection cancelled for box {}", collectingBoxId);
             resetCollection();
         }
+    }
+    
+    /**
+     * Get number of successful collections.
+     */
+    public int getSuccessfulCollections() {
+        return successfulCollections;
+    }
+    
+    /**
+     * Get number of failed collections.
+     */
+    public int getFailedCollections() {
+        return failedCollections;
     }
 }

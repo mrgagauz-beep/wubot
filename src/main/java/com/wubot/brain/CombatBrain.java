@@ -24,6 +24,12 @@ public class CombatBrain {
     private boolean lockSent = false;
     private boolean lockConfirmed = false;
     private long lockSentTime = 0;
+    
+    // Attack confirmation tracking
+    private int lastKnownTargetHp = -1;
+    private int lastKnownTargetShield = -1;
+    private long lastDamageTime = 0;
+    private int totalDamageDealt = 0;
 
     /**
      * Get combat actions for current tick.
@@ -91,8 +97,33 @@ public class CombatBrain {
 
         // STATE 3: ATTACK - we have confirmed HP
         if (lockConfirmed && !target.isDead()) {
-            // Attack periodically
+            // Track damage confirmation
+            int currentHp = target.getHp();
+            int currentShield = target.getShield();
+            
+            if (lastKnownTargetHp >= 0) {
+                int hpDamage = lastKnownTargetHp - currentHp;
+                int shieldDamage = lastKnownTargetShield - currentShield;
+                int totalDamage = Math.max(0, hpDamage) + Math.max(0, shieldDamage);
+                
+                if (totalDamage > 0) {
+                    totalDamageDealt += totalDamage;
+                    lastDamageTime = System.currentTimeMillis();
+                    log.info("[COMBAT] Damage confirmed: {} (hp:{} shield:{}) total={}", 
+                        totalDamage, hpDamage, shieldDamage, totalDamageDealt);
+                }
+            }
+            lastKnownTargetHp = currentHp;
+            lastKnownTargetShield = currentShield;
+            
+            // Warn if no damage for too long (possible attack failure)
             long now = System.currentTimeMillis();
+            if (lastDamageTime > 0 && now - lastDamageTime > 10000) {
+                log.warn("[COMBAT] No damage dealt for {}ms - attack may not be working!", 
+                    now - lastDamageTime);
+            }
+            
+            // Attack periodically
             if (now - lastAttackTime > 1000) {
                 log.debug("Attacking target: {} HP: {}/{}", target, target.getHp(), target.getMaxHp());
                 actions.add(new Action.Attack());
@@ -241,5 +272,16 @@ public class CombatBrain {
         lockSent = false;
         lockConfirmed = false;
         lockSentTime = 0;
+        lastKnownTargetHp = -1;
+        lastKnownTargetShield = -1;
+        lastDamageTime = 0;
+        totalDamageDealt = 0;
+    }
+    
+    /**
+     * Get total damage dealt to current target.
+     */
+    public int getTotalDamageDealt() {
+        return totalDamageDealt;
     }
 }

@@ -13,6 +13,9 @@ public class NpcEntity {
     private float speed;
     private long lastUpdateTime;
     private float lastX, lastY;
+    
+    /** Flag to track if this NPC's stats have been recorded for discovery */
+    private boolean statsRecorded = false;
 
     public NpcEntity(int id) {
         this.id = id;
@@ -48,6 +51,12 @@ public class NpcEntity {
     public void setShield(int shield) { this.shield = shield; }
     public void setMaxShield(int maxShield) { this.maxShield = maxShield; }
     public void setSpeed(float speed) { this.speed = speed; }
+    
+    /** Check if stats have been recorded for discovery */
+    public boolean isStatsRecorded() { return statsRecorded; }
+    
+    /** Mark stats as recorded for discovery */
+    public void setStatsRecorded(boolean recorded) { this.statsRecorded = recorded; }
 
     // === Computed ===
 

@@ -63,6 +63,10 @@ public class GameLoop {
     public void stop() {
         log.info("Stopping game loop...");
         running = false;
+        
+        // Save discovery data on shutdown
+        discovery.forceSave();
+        log.info("Discovery data saved on shutdown: {}", discovery.getSummary());
     }
 
     /**
@@ -126,12 +130,26 @@ public class GameLoop {
             executor.execute(action);
         }
 
-        // Periodic status logging
-        if (tickCount % 100 == 0) { // Every 10 seconds
-            log.debug("Tick {} - State: {}, HP: {}/{}, NPCs: {}, Boxes: {}",
+        // Periodic diagnostic logging (every 5 seconds for better visibility)
+        if (tickCount % 50 == 0) {
+            Integer targetId = brain.getCombatBrain().getCurrentTargetId();
+            String targetInfo = "none";
+            if (targetId != null) {
+                var target = snapshot.findNpc(targetId);
+                if (target != null) {
+                    targetInfo = String.format("id=%d hp=%d/%d", targetId, target.getHp(), target.getMaxHp());
+                } else {
+                    targetInfo = String.format("id=%d (not found)", targetId);
+                }
+            }
+            log.info("[DIAG] tick={} state={} pos=({},{}) hp={}/{} shield={}/{} cargo={}/{} npcs={} boxes={} target={} actions={}",
                     tickCount, brain.getState(),
+                    (int) snapshot.getPlayerX(), (int) snapshot.getPlayerY(),
                     snapshot.getPlayerHp(), snapshot.getPlayerMaxHp(),
-                    snapshot.getNpcs().size(), snapshot.getBoxes().size());
+                    snapshot.getPlayerShield(), snapshot.getPlayerMaxShield(),
+                    snapshot.getCargoUsed(), snapshot.getCargoMax(),
+                    snapshot.getNpcs().size(), snapshot.getBoxes().size(),
+                    targetInfo, actions.size());
         }
 
         // Auto-save discovery data periodically
@@ -149,6 +167,10 @@ public class GameLoop {
         // Update discovery system with map info
         WorldSnapshot snapshot = world.snapshot();
         discovery.onMapInfo(mapInfo, snapshot.getPlayerX(), snapshot.getPlayerY());
+
+        // Save discovery data on map change (don't wait for 5-minute autosave)
+        discovery.saveAll();
+        log.info("Discovery data saved on map change: {}", discovery.getSummary());
 
         // Update navigation brain with portal data
         if (mapInfo.teleports != null) {

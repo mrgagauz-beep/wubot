@@ -203,16 +203,23 @@ public class PacketProcessor {
      */
     private void processNpc(GameStateResponsePacket.ShipInResponse ship, int npcType, World world) {
         NpcEntity npc = world.getOrCreateNpc(ship.id);
-        boolean isNew = npc.getNpcType() == 0;
         npc.setNpcType(npcType);
+
+        // Track maxHp before applying changes to detect when it becomes > 0
+        int prevMaxHp = npc.getMaxHp();
 
         for (ChangedParameter change : ship.changes) {
             applyNpcChange(npc, change);
         }
 
-        // Discover NPC type for statistics (only on first spawn or if this is new data)
-        if (isNew && currentMapId > 0 && npc.getMaxHp() > 0) {
+        // Record NPC stats for discovery when maxHp becomes available (after lock)
+        // This fixes the bug where stats were only recorded when isNew && maxHp > 0,
+        // but maxHp is always 0 when NPC is first seen (before lock)
+        if (!npc.isStatsRecorded() && currentMapId > 0 && npc.getMaxHp() > 0) {
             discovery.onNpcSpawn(currentMapId, npcType, npc.getHp(), npc.getMaxHp(), npc.getSpeed());
+            npc.setStatsRecorded(true);
+            log.info("[DISCOVERY] Recorded NPC type={} hp={}/{} speed={} on map={}", 
+                npcType, npc.getHp(), npc.getMaxHp(), npc.getSpeed(), currentMapId);
         }
 
         log.trace("Updated NPC: {}", npc);
@@ -228,27 +235,32 @@ public class PacketProcessor {
         log.debug("[NPC {}] Param id={}, data={} (type={})",
             npc.getId(), change.id, change.data, change.data.getClass().getSimpleName());
 
-        if (change.id == ParamId.POSITION) {
-            int[] pos = (int[]) change.data;
-            if (pos.length >= 2) {
-                npc.setPosition(pos[0], pos[1]);
+        try {
+            if (change.id == ParamId.POSITION) {
+                float[] pos = parsePosition(change.data);
+                if (pos != null) {
+                    npc.setPosition(pos[0], pos[1]);
+                }
+            } else if (change.id == ParamId.HP) {
+                npc.setHp(((Number) change.data).intValue());
+                log.info("[NPC {}] HP set to {}", npc.getId(), ((Number) change.data).intValue());
+            } else if (change.id == ParamId.MAX_HP) {
+                npc.setMaxHp(((Number) change.data).intValue());
+                log.info("[NPC {}] MAX_HP set to {}", npc.getId(), ((Number) change.data).intValue());
+            } else if (change.id == ParamId.SPEED) {
+                npc.setSpeed(((Number) change.data).floatValue());
+            } else if (change.id == ParamId.NPC_TYPE) {
+                npc.setNpcType(((Number) change.data).intValue());
+            } else if (change.id == ParamId.SHIELD) {
+                npc.setShield(((Number) change.data).intValue());
+                log.info("[NPC {}] Shield set to {}", npc.getId(), ((Number) change.data).intValue());
+            } else if (change.id == ParamId.MAX_SHIELD) {
+                npc.setMaxShield(((Number) change.data).intValue());
+                log.info("[NPC {}] MAX_SHIELD set to {}", npc.getId(), ((Number) change.data).intValue());
             }
-        } else if (change.id == ParamId.HP) {
-            npc.setHp(((Number) change.data).intValue());
-            log.info("[NPC {}] HP set to {}", npc.getId(), ((Number) change.data).intValue());
-        } else if (change.id == ParamId.MAX_HP) {
-            npc.setMaxHp(((Number) change.data).intValue());
-            log.info("[NPC {}] MAX_HP set to {}", npc.getId(), ((Number) change.data).intValue());
-        } else if (change.id == ParamId.SPEED) {
-            npc.setSpeed(((Number) change.data).floatValue());
-        } else if (change.id == ParamId.NPC_TYPE) {
-            npc.setNpcType(((Number) change.data).intValue());
-        } else if (change.id == ParamId.SHIELD) {
-            npc.setShield(((Number) change.data).intValue());
-            log.info("[NPC {}] Shield set to {}", npc.getId(), ((Number) change.data).intValue());
-        } else if (change.id == ParamId.MAX_SHIELD) {
-            npc.setMaxShield(((Number) change.data).intValue());
-            log.info("[NPC {}] MAX_SHIELD set to {}", npc.getId(), ((Number) change.data).intValue());
+        } catch (Exception e) {
+            log.error("[NPC {}] Failed to apply change id={}: {} - {}", 
+                npc.getId(), change.id, change.data, e.getMessage());
         }
     }
 
@@ -276,19 +288,24 @@ public class PacketProcessor {
     private void applyPlayerChange(PlayerEntity player, ChangedParameter change) {
         if (change.data == null) return;
 
-        if (change.id == ParamId.POSITION) {
-            int[] pos = (int[]) change.data;
-            if (pos.length >= 2) {
-                player.setPosition(pos[0], pos[1]);
+        try {
+            if (change.id == ParamId.POSITION) {
+                float[] pos = parsePosition(change.data);
+                if (pos != null) {
+                    player.setPosition(pos[0], pos[1]);
+                }
+            } else if (change.id == ParamId.PLAYER_HP) {
+                player.setHp(((Number) change.data).intValue());
+            } else if (change.id == ParamId.PLAYER_MAX_HP) {
+                player.setMaxHp(((Number) change.data).intValue());
+            } else if (change.id == ParamId.PLAYER_SHIELD) {
+                player.setShield(((Number) change.data).intValue());
+            } else if (change.id == ParamId.PLAYER_MAX_SHIELD) {
+                player.setMaxShield(((Number) change.data).intValue());
             }
-        } else if (change.id == ParamId.PLAYER_HP) {
-            player.setHp(((Number) change.data).intValue());
-        } else if (change.id == ParamId.PLAYER_MAX_HP) {
-            player.setMaxHp(((Number) change.data).intValue());
-        } else if (change.id == ParamId.PLAYER_SHIELD) {
-            player.setShield(((Number) change.data).intValue());
-        } else if (change.id == ParamId.PLAYER_MAX_SHIELD) {
-            player.setMaxShield(((Number) change.data).intValue());
+        } catch (Exception e) {
+            log.error("[Player {}] Failed to apply change id={}: {} - {}", 
+                player.getId(), change.id, change.data, e.getMessage());
         }
     }
 
@@ -315,8 +332,8 @@ public class PacketProcessor {
 
         try {
             if (change.id == ParamId.POSITION) {
-                int[] pos = (int[]) change.data;
-                if (pos.length >= 2) {
+                float[] pos = parsePosition(change.data);
+                if (pos != null) {
                     player.setPosition(pos[0], pos[1]);
                 }
             } else if (change.id == ParamId.PLAYER_HP) {
@@ -363,6 +380,42 @@ public class PacketProcessor {
             return ((Number) data).floatValue();
         }
         return 0f;
+    }
+
+    /**
+     * Safely parse POSITION data which can be int[], float[], or Number[].
+     * Returns [x, y] as floats, or null if parsing fails.
+     */
+    private float[] parsePosition(Object data) {
+        if (data == null) return null;
+        
+        try {
+            if (data instanceof int[] intArr) {
+                if (intArr.length >= 2) {
+                    return new float[]{intArr[0], intArr[1]};
+                }
+            } else if (data instanceof float[] floatArr) {
+                if (floatArr.length >= 2) {
+                    return new float[]{floatArr[0], floatArr[1]};
+                }
+            } else if (data instanceof double[] doubleArr) {
+                if (doubleArr.length >= 2) {
+                    return new float[]{(float) doubleArr[0], (float) doubleArr[1]};
+                }
+            } else if (data instanceof Number[] numArr) {
+                if (numArr.length >= 2) {
+                    return new float[]{numArr[0].floatValue(), numArr[1].floatValue()};
+                }
+            } else if (data instanceof Object[] objArr) {
+                if (objArr.length >= 2 && objArr[0] instanceof Number && objArr[1] instanceof Number) {
+                    return new float[]{((Number) objArr[0]).floatValue(), ((Number) objArr[1]).floatValue()};
+                }
+            }
+            log.warn("Unknown POSITION format: {} (type={})", data, data.getClass().getSimpleName());
+        } catch (Exception e) {
+            log.error("Failed to parse POSITION: {} (type={}) - {}", data, data.getClass().getSimpleName(), e.getMessage());
+        }
+        return null;
     }
 
     /**
