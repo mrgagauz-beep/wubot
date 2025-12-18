@@ -54,3 +54,6 @@ src/main/java/com/wubot/
 ## Лицензия
 
 Private
+
+---
+*Last verified: December 2025*
