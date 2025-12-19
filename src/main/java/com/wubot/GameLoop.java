@@ -40,7 +40,7 @@ public class GameLoop {
     private boolean explorationStarted = false;
     
     /** Enable exploration mode on startup (for testing portal teleportation) */
-    private boolean explorationModeEnabled = false;  // Disabled by default - enable via setExplorationModeEnabled()
+    private boolean explorationModeEnabled = true;  // Enabled for testing portal teleportation
 
     public GameLoop(Connection connection, PacketProcessor processor, World world,
                     BotBrain brain, ActionExecutor executor, DiscoveryCollector discovery) {
@@ -160,6 +160,9 @@ public class GameLoop {
         if (tickCount > 0 && tickCount % AUTO_SAVE_INTERVAL == 0) {
             discovery.saveAll();
         }
+        
+        // Start exploration mode if enabled (after initial ticks)
+        maybeStartExploration();
     }
 
     /**
@@ -195,11 +198,34 @@ public class GameLoop {
         
         // Notify brain of map change for exploration mode
         brain.onExplorationMapChanged(mapInfo.mapId);
-        
-        // Start exploration mode on first map (for testing portal teleportation)
-        if (explorationModeEnabled && !explorationStarted) {
+    }
+    
+    /**
+     * Start exploration mode if enabled.
+     * Called after world state is valid (player has position and HP).
+     * IMPORTANT: Don't start exploration while world is still initializing (pos=0,0, hp=0)!
+     */
+    private void maybeStartExploration() {
+        if (explorationModeEnabled && !explorationStarted && tickCount >= 10) {
+            // Check if world state is valid before starting exploration
+            WorldSnapshot snapshot = world.snapshot();
+            float playerX = snapshot.getPlayerX();
+            float playerY = snapshot.getPlayerY();
+            int maxHp = snapshot.getPlayerMaxHp();
+            
+            // Wait for valid player state (non-zero position and HP)
+            if (playerX == 0 && playerY == 0) {
+                log.debug("[EXPLORE] Waiting for valid player position (currently at 0,0)");
+                return;
+            }
+            if (maxHp <= 0) {
+                log.debug("[EXPLORE] Waiting for valid player HP (currently maxHp={})", maxHp);
+                return;
+            }
+            
             explorationStarted = true;
-            log.info("[EXPLORE] Starting exploration mode after initial map load");
+            log.info("[EXPLORE] Starting exploration mode (tick {}, pos=({},{}), maxHp={})", 
+                     tickCount, (int)playerX, (int)playerY, maxHp);
             brain.startExploration();
         }
     }

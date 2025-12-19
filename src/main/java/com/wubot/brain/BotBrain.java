@@ -364,13 +364,21 @@ public class BotBrain {
     private int explorationJumpCount = 0;
     private int explorationTargetJumps = 2;  // Jump there and back
     private boolean waitingForMapChange = false;
+    private boolean explorationCombatCleared = false;  // Track if we've cleared combat state
     
     /**
      * Start exploration mode - teleport to another map and back.
+     * IMPORTANT: Clears combat target to allow free movement!
      */
     public void startExploration() {
         explorationJumpCount = 0;
         waitingForMapChange = false;
+        explorationCombatCleared = false;  // Will send StopAttack on first tick
+        
+        // Clear any active combat target - this is critical for movement to work!
+        combatBrain.clearTarget();
+        log.info("[EXPLORE] Cleared combat target for exploration");
+        
         transitionTo(BotState.EXPLORING);
         log.info("[EXPLORE] Starting exploration - will teleport {} times", explorationTargetJumps);
     }

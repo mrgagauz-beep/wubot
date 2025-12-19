@@ -161,19 +161,28 @@ public class NavigationBrain {
 
     /**
      * Find nearest portal to player.
+     * Uses hardcoded portal positions if no MapInfoPacket was received.
      */
     public PortalInfo findNearestPortal(WorldSnapshot world) {
-        if (currentPortals == null || currentPortals.length == 0) {
+        PortalInfo[] portals = currentPortals;
+        
+        // If no portals from MapInfoPacket, use hardcoded positions for known maps
+        if (portals == null || portals.length == 0) {
+            portals = getHardcodedPortals(currentMapId);
+            if (portals != null) {
+                log.info("[NAV] Using hardcoded portals for mapId={} ({} portals)", currentMapId, portals.length);
+            }
+        }
+        
+        if (portals == null || portals.length == 0) {
+            log.warn("[NAV] No portals available for mapId={}", currentMapId);
             return null;
         }
 
         PortalInfo nearest = null;
         float nearestDist = Float.MAX_VALUE;
 
-        for (PortalInfo portal : currentPortals) {
-            // Skip special portals (type != 1)
-            if (portal.type != 1) continue;
-
+        for (PortalInfo portal : portals) {
             float dist = world.distanceTo(portal.x, portal.y);
             if (dist < nearestDist) {
                 nearestDist = dist;
@@ -181,7 +190,45 @@ public class NavigationBrain {
             }
         }
 
+        if (nearest != null) {
+            log.debug("[NAV] Nearest portal: index={} at ({}, {}), dist={}", 
+                nearest.index, (int)nearest.x, (int)nearest.y, (int)nearestDist);
+        }
+
         return nearest;
+    }
+    
+    /**
+     * Get hardcoded portal positions for known maps.
+     * Based on packet analysis from user's packet_report.txt.
+     * 
+     * Map E-1 (mapId=2): 
+     *   - Portal 0: x=15000, y=1000
+     *   - Portal 1: x=1000, y=1000
+     */
+    private PortalInfo[] getHardcodedPortals(int mapId) {
+        // If mapId is unknown (0 or -1), default to E-1 (mapId=2) since that's where user typically is
+        int effectiveMapId = (mapId <= 0) ? 2 : mapId;
+        
+        switch (effectiveMapId) {
+            case 2: // E-1
+                return new PortalInfo[] {
+                    new PortalInfo(0, 0, 0, 15000, 1000),
+                    new PortalInfo(1, 0, 0, 1000, 1000)
+                };
+            case 1: // E-0 (starter map, approximate)
+                return new PortalInfo[] {
+                    new PortalInfo(0, 0, 0, 15000, 5000),
+                    new PortalInfo(1, 0, 0, 1000, 5000)
+                };
+            default:
+                // For unknown maps, return E-1 portals as fallback
+                log.warn("[NAV] Unknown mapId={}, using E-1 portals as fallback", mapId);
+                return new PortalInfo[] {
+                    new PortalInfo(0, 0, 0, 15000, 1000),
+                    new PortalInfo(1, 0, 0, 1000, 1000)
+                };
+        }
     }
 
     /**
