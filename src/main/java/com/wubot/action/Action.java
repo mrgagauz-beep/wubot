@@ -34,8 +34,10 @@ public sealed interface Action {
 
     /**
      * Use teleport portal.
+     * portalIndex is the array index in teleports[] for discovery tracking.
+     * portalId is the ID from TPort.id for the TeleportRequestPacket.
      */
-    record UseTeleport(int portalId) implements Action {}
+    record UseTeleport(int portalIndex, int portalId) implements Action {}
 
     /**
      * Switch ship configuration (1 or 2).

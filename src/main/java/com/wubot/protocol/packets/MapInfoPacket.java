@@ -15,9 +15,12 @@ public class MapInfoPacket {
     public TPort[] teleports;
 
     public static class TPort {
-        public int type;
-        public int subtype;
-        public int x;
-        public int y;
+        // NOTE: Keep id field for Kryo deserialization compatibility even if not used
+        // Server may send id field even if docs don't mention it
+        public int id;         // Portal ID (for Kryo compatibility)
+        public int type;       // Portal type
+        public int subtype;    // Subtype (target map ID?)
+        public int x;          // X coordinate
+        public int y;          // Y coordinate
     }
 }

@@ -3,6 +3,8 @@ package com.wubot.network;
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Listener;
 import com.wubot.protocol.packets.GameEvent;
+import com.wubot.protocol.packets.MapInfoPacket;
+import com.wubot.protocol.packets.UserInfoResponsePacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +59,22 @@ public class Connection {
                     // Log GameEvent contents to debug world state issue
                     if (object instanceof GameEvent ge) {
                         log.info("[PACKET] GameEvent: id={}, data={}", ge.id, ge);
+                    } else if (object instanceof MapInfoPacket mapInfo) {
+                        // Log MapInfoPacket with portal details - CRITICAL for teleportation
+                        // Per documentation: TPort has type, subtype, x, y - NO id field
+                        log.info("[PACKET] MapInfoPacket: mapId={}, name={}, size={}x{}, portals={}",
+                                mapInfo.mapId, mapInfo.name, mapInfo.width, mapInfo.height,
+                                mapInfo.teleports != null ? mapInfo.teleports.length : 0);
+                        if (mapInfo.teleports != null) {
+                            for (int i = 0; i < mapInfo.teleports.length; i++) {
+                                MapInfoPacket.TPort tp = mapInfo.teleports[i];
+                                log.info("[PACKET] Portal[{}]: type={}, subtype={}, pos=({},{})",
+                                        i, tp.type, tp.subtype, tp.x, tp.y);
+                            }
+                        }
+                    } else if (object instanceof UserInfoResponsePacket userInfo) {
+                        // Log UserInfoResponsePacket params - might contain portal activation
+                        log.info("[PACKET] UserInfoResponsePacket: {}", userInfo);
                     } else {
                         log.info("[PACKET] Received: {}", className);
                     }

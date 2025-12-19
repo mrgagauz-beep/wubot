@@ -37,15 +37,18 @@ public class NavigationBrain {
 
     /**
      * Simple portal info holder.
+     * Contains both index (for discovery tracking) and id (for TeleportRequestPacket).
      */
     public static class PortalInfo {
-        public final int index;
-        public final int type;
-        public final int subtype;
-        public final float x, y;
+        public final int index;      // Array index in teleports[] - for discovery tracking
+        public final int id;         // Portal ID from TPort.id - for TeleportRequestPacket
+        public final int type;       // Portal type
+        public final int subtype;    // Subtype (target map ID?)
+        public final float x, y;     // Portal coordinates
 
-        public PortalInfo(int index, int type, int subtype, float x, float y) {
+        public PortalInfo(int index, int id, int type, int subtype, float x, float y) {
             this.index = index;
+            this.id = id;
             this.type = type;
             this.subtype = subtype;
             this.x = x;
@@ -90,10 +93,10 @@ public class NavigationBrain {
 
         if (dist <= PORTAL_JUMP_DISTANCE) {
             // Close enough - teleport!
-            log.info("Near portal, teleporting! (index={})", portal.index);
+            log.info("Near portal, teleporting! (index={}, id={})", portal.index, portal.id);
             lastMapId = currentMapId;
             lastPortalIndex = portal.index;
-            actions.add(new Action.UseTeleport(portal.index));
+            actions.add(new Action.UseTeleport(portal.index, portal.id));
         } else {
             // Move towards portal (and beyond - don't stop at it!)
             // Calculate point beyond portal
@@ -143,7 +146,8 @@ public class NavigationBrain {
             // Find portal we're standing on (nearest to player)
             PortalInfo standingPortal = findNearestPortal(world);
             if (standingPortal != null) {
-                actions.add(new Action.UseTeleport(standingPortal.index));
+                log.info("Jumping back through portal index={}, id={}", standingPortal.index, standingPortal.id);
+                actions.add(new Action.UseTeleport(standingPortal.index, standingPortal.id));
             }
         }
 
@@ -212,21 +216,24 @@ public class NavigationBrain {
         
         switch (effectiveMapId) {
             case 2: // E-1
+                // Hardcoded portals: index, id, type, subtype, x, y
+                // User says: right-bottom portal (15000,1000) -> E-2, left-bottom (1000,1000) -> E-3
+                // Using index as id for hardcoded portals - real id comes from MapInfoPacket
                 return new PortalInfo[] {
-                    new PortalInfo(0, 0, 0, 15000, 1000),
-                    new PortalInfo(1, 0, 0, 1000, 1000)
+                    new PortalInfo(0, 0, 0, 5, 15000, 1000),   // Portal 0 -> E-2 (mapId=5)
+                    new PortalInfo(1, 1, 0, 8, 1000, 1000)    // Portal 1 -> E-3 (mapId=8)
                 };
             case 1: // E-0 (starter map, approximate)
                 return new PortalInfo[] {
-                    new PortalInfo(0, 0, 0, 15000, 5000),
-                    new PortalInfo(1, 0, 0, 1000, 5000)
+                    new PortalInfo(0, 0, 0, 0, 15000, 5000),
+                    new PortalInfo(1, 1, 0, 0, 1000, 5000)
                 };
             default:
                 // For unknown maps, return E-1 portals as fallback
                 log.warn("[NAV] Unknown mapId={}, using E-1 portals as fallback", mapId);
                 return new PortalInfo[] {
-                    new PortalInfo(0, 0, 0, 15000, 1000),
-                    new PortalInfo(1, 0, 0, 1000, 1000)
+                    new PortalInfo(0, 0, 0, 5, 15000, 1000),
+                    new PortalInfo(1, 1, 0, 8, 1000, 1000)
                 };
         }
     }

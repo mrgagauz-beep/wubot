@@ -41,6 +41,12 @@ public class GameLoop {
     
     /** Enable exploration mode on startup (for testing portal teleportation) */
     private boolean explorationModeEnabled = true;  // Enabled for testing portal teleportation
+    
+    /** Ship destroyed detection */
+    private boolean hadValidPlayerState = false;
+    private boolean shipDestroyed = false;
+    private long lastRepairRequestTime = 0;
+    private static final long REPAIR_REQUEST_COOLDOWN_MS = 3000;  // Don't spam repair requests
 
     public GameLoop(Connection connection, PacketProcessor processor, World world,
                     BotBrain brain, ActionExecutor executor, DiscoveryCollector discovery) {
@@ -125,6 +131,12 @@ public class GameLoop {
 
         // 3. Create snapshot of world state
         WorldSnapshot snapshot = world.snapshot();
+        
+        // 3.5. Check for ship destroyed state and auto-repair
+        if (checkAndRepairIfDestroyed(snapshot)) {
+            // Ship is destroyed, skip brain decisions until repaired
+            return;
+        }
 
         // 4. Brain decides actions
         List<Action> actions = brain.decide(snapshot);
@@ -181,11 +193,15 @@ public class GameLoop {
         log.info("Discovery data saved on map change: {}", discovery.getSummary());
 
         // Update navigation brain with portal data
+        // TPort has id, type, subtype, x, y - use id for TeleportRequestPacket
         if (mapInfo.teleports != null) {
             NavigationBrain.PortalInfo[] portals = new NavigationBrain.PortalInfo[mapInfo.teleports.length];
             for (int i = 0; i < mapInfo.teleports.length; i++) {
                 MapInfoPacket.TPort tp = mapInfo.teleports[i];
-                portals[i] = new NavigationBrain.PortalInfo(i, tp.type, tp.subtype, tp.x, tp.y);
+                // Pass tp.id for TeleportRequestPacket.portalId
+                portals[i] = new NavigationBrain.PortalInfo(i, tp.id, tp.type, tp.subtype, tp.x, tp.y);
+                log.debug("[NAV] Portal {}: id={}, type={}, subtype={}, pos=({},{})", 
+                         i, tp.id, tp.type, tp.subtype, tp.x, tp.y);
             }
             brain.setCurrentMapPortals(mapInfo.mapId, portals);
         }
@@ -265,5 +281,55 @@ public class GameLoop {
      */
     public boolean isExplorationModeEnabled() {
         return explorationModeEnabled;
+    }
+    
+    /**
+     * Check if ship is destroyed and send repair request if needed.
+     * Ship is considered destroyed when:
+     * - We previously had valid player state (hadValidPlayerState = true)
+     * - Current state shows hp=0, maxHp=0, position=(0,0)
+     * 
+     * @return true if ship is destroyed and we should skip brain decisions
+     */
+    private boolean checkAndRepairIfDestroyed(WorldSnapshot snapshot) {
+        float playerX = snapshot.getPlayerX();
+        float playerY = snapshot.getPlayerY();
+        int hp = snapshot.getPlayerHp();
+        int maxHp = snapshot.getPlayerMaxHp();
+        
+        // Track if we ever had valid player state
+        if (!hadValidPlayerState && maxHp > 0 && (playerX != 0 || playerY != 0)) {
+            hadValidPlayerState = true;
+            shipDestroyed = false;
+            log.info("[REPAIR] Valid player state detected: pos=({},{}), hp={}/{}", 
+                     (int)playerX, (int)playerY, hp, maxHp);
+        }
+        
+        // Check for destroyed state: had valid state before, now hp=0, maxHp=0, pos=(0,0)
+        if (hadValidPlayerState && maxHp == 0 && hp == 0 && playerX == 0 && playerY == 0) {
+            if (!shipDestroyed) {
+                shipDestroyed = true;
+                log.warn("[REPAIR] Ship destroyed! Sending repair request...");
+            }
+            
+            // Send repair request with cooldown to avoid spamming
+            long now = System.currentTimeMillis();
+            if (now - lastRepairRequestTime >= REPAIR_REQUEST_COOLDOWN_MS) {
+                lastRepairRequestTime = now;
+                executor.sendRepair();
+                log.info("[REPAIR] Repair request sent (cooldown={}ms)", REPAIR_REQUEST_COOLDOWN_MS);
+            }
+            
+            return true;  // Skip brain decisions while destroyed
+        }
+        
+        // If we were destroyed but now have valid state again, we're repaired
+        if (shipDestroyed && maxHp > 0) {
+            shipDestroyed = false;
+            log.info("[REPAIR] Ship repaired! Resuming normal operation. pos=({},{}), hp={}/{}", 
+                     (int)playerX, (int)playerY, hp, maxHp);
+        }
+        
+        return false;
     }
 }

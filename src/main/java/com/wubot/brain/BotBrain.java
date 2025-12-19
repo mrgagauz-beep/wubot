@@ -365,6 +365,8 @@ public class BotBrain {
     private int explorationTargetJumps = 2;  // Jump there and back
     private boolean waitingForMapChange = false;
     private boolean explorationCombatCleared = false;  // Track if we've cleared combat state
+    private long teleportRequestTime = 0;
+    private static final long TELEPORT_TIMEOUT_MS = 5000;  // 5 seconds timeout for teleport
     
     /**
      * Start exploration mode - teleport to another map and back.
@@ -394,10 +396,17 @@ public class BotBrain {
             return;
         }
         
-        // If waiting for map change, don't do anything
+        // If waiting for map change, check for timeout
         if (waitingForMapChange) {
-            log.debug("[EXPLORE] Waiting for map change confirmation...");
-            return;
+            long elapsed = System.currentTimeMillis() - teleportRequestTime;
+            if (elapsed > TELEPORT_TIMEOUT_MS) {
+                log.warn("[EXPLORE] Teleport timeout after {}ms - retrying approach", elapsed);
+                waitingForMapChange = false;
+                // Fall through to retry approaching portal
+            } else {
+                log.debug("[EXPLORE] Waiting for map change confirmation... ({}ms)", elapsed);
+                return;
+            }
         }
         
         // Find nearest portal
@@ -412,11 +421,15 @@ public class BotBrain {
         float dist = world.distanceTo(portal.x, portal.y);
         log.info("[EXPLORE] Portal at ({}, {}), distance={}", portal.x, portal.y, (int) dist);
         
-        if (dist <= 150f) {
+        // Documentation says distance < 100 for teleport to work
+        // Use 90 to have some margin for position jitter
+        if (dist <= 90f) {
             // Close enough - teleport!
-            log.info("[EXPLORE] Near portal ({}px), teleporting! (index={})", (int) dist, portal.index);
-            actions.add(new Action.UseTeleport(portal.index));
+            // Send UserActionsPacket(TELEPORT) + TeleportRequestPacket(portalId)
+            log.info("[EXPLORE] Near portal ({}px), teleporting! (index={}, id={})", (int) dist, portal.index, portal.id);
+            actions.add(new Action.UseTeleport(portal.index, portal.id));
             waitingForMapChange = true;
+            teleportRequestTime = System.currentTimeMillis();
         } else {
             // Move towards portal
             log.info("[EXPLORE] Moving to portal at ({}, {})", portal.x, portal.y);

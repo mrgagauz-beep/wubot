@@ -1,6 +1,8 @@
 package com.wubot.network;
 
 import com.wubot.protocol.packets.CollectableCollectRequest;
+import com.wubot.protocol.packets.RepairRequestPacket;
+import com.wubot.protocol.packets.TeleportRequestPacket;
 import com.wubot.protocol.packets.UserActionsPacket;
 import com.wubot.protocol.packets.UserActionsPacket.UserAction;
 import com.wubot.protocol.packets.equip.EquipHangarActionRequest;
@@ -124,19 +126,28 @@ public class PacketSender {
     }
 
     /**
-     * Send teleport command via UserAction.
-     * Must be near portal!
-     *
-     * @param portalId ID of portal (or portal index)
+     * Send teleport request.
+     * Must be near portal (distance < 100)!
+     * 
+     * Protocol: Send UserActionsPacket with actionId=TELEPORT, then TeleportRequestPacket with portal ID.
+     * Server determines which portal based on player position and portal ID.
+     * 
+     * @param portalId ID of portal to teleport through (from TPort.id in MapInfoPacket)
      */
     public void teleport(int portalId) {
-        UserActionsPacket packet = new UserActionsPacket();
+        // Step 1: Send UserActionsPacket with TELEPORT action
+        UserActionsPacket actionPacket = new UserActionsPacket();
         UserAction action = new UserAction();
         action.actionId = UserAction.TELEPORT;
-        action.data = String.valueOf(portalId);
-        packet.actions = new UserAction[]{action};
-        send(packet);
-        log.debug("TELEPORT via portal {}", portalId);
+        action.data = "";  // No data needed for teleport action
+        actionPacket.actions = new UserAction[]{action};
+        send(actionPacket);
+        log.info("TELEPORT action sent via UserActionsPacket");
+        
+        // Step 2: Send TeleportRequestPacket with portal ID
+        TeleportRequestPacket teleportPacket = new TeleportRequestPacket(portalId);
+        send(teleportPacket);
+        log.info("TELEPORT request sent for portal ID {}", portalId);
     }
 
     /**
@@ -167,6 +178,16 @@ public class PacketSender {
         packet.data = hangarId;
         send(packet);
         log.debug("SWITCH_SHIP to hangar {}", hangarId);
+    }
+
+    /**
+     * Send repair request.
+     * Used when ship is destroyed to respawn.
+     */
+    public void repair() {
+        RepairRequestPacket packet = new RepairRequestPacket();
+        send(packet);
+        log.info("REPAIR request sent");
     }
 
     /**

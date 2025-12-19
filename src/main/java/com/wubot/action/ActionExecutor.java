@@ -77,9 +77,10 @@ public class ActionExecutor {
     }
 
     private void executeTeleport(Action.UseTeleport action) {
-        log.debug("Executing TELEPORT via portal {}", action.portalId());
+        log.debug("Executing TELEPORT via portal index={}, id={}", action.portalIndex(), action.portalId());
         // Notify discovery BEFORE teleport for connection tracking
-        discovery.onBeforeTeleport(action.portalId());
+        discovery.onBeforeTeleport(action.portalIndex());
+        // Send UserActionsPacket(TELEPORT) + TeleportRequestPacket(portalId)
         sender.teleport(action.portalId());
     }
 
@@ -101,5 +102,14 @@ public class ActionExecutor {
             Thread.currentThread().interrupt();
             log.warn("Wait interrupted");
         }
+    }
+    
+    /**
+     * Send repair request directly (not via Action).
+     * Used by GameLoop when ship is destroyed.
+     */
+    public void sendRepair() {
+        log.info("Sending REPAIR request");
+        sender.repair();
     }
 }
