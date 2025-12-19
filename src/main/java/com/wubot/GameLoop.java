@@ -7,11 +7,15 @@ import com.wubot.brain.NavigationBrain;
 import com.wubot.discovery.DiscoveryCollector;
 import com.wubot.network.Connection;
 import com.wubot.protocol.PacketProcessor;
+import com.wubot.protocol.api.ApiNotification;
 import com.wubot.protocol.packets.MapInfoPacket;
 import com.wubot.world.World;
 import com.wubot.world.WorldSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import java.util.List;
 
@@ -127,6 +131,12 @@ public class GameLoop {
             if (packet instanceof MapInfoPacket mapInfo) {
                 handleMapChange(mapInfo);
             }
+            
+            // Handle ApiNotification for map info (sent after teleportation)
+            // Per Wireshark capture: Server sends map info via ApiNotification JSON after teleport
+            if (packet instanceof ApiNotification notification) {
+                handleApiNotification(notification);
+            }
         }
 
         // 3. Create snapshot of world state
@@ -214,6 +224,82 @@ public class GameLoop {
         
         // Notify brain of map change for exploration mode
         brain.onExplorationMapChanged(mapInfo.mapId);
+    }
+    
+    /**
+     * Handle ApiNotification packets.
+     * Per Wireshark capture: Server sends map info via ApiNotification JSON after teleportation.
+     * JSON format: {"mapId":5,"name":"E-2","width":16000,"height":10000,"mapObjects":[...]}
+     */
+    private void handleApiNotification(ApiNotification notification) {
+        String key = notification.getKey();
+        String json = notification.getNotificationJsonString();
+        
+        log.info("[API_NOTIFICATION] key='{}', json length={}", key, json != null ? json.length() : 0);
+        
+        // Handle map-info notification (sent after teleportation)
+        if ("map-info".equals(key) && json != null && !json.isEmpty()) {
+            try {
+                Gson gson = new Gson();
+                JsonObject mapData = gson.fromJson(json, JsonObject.class);
+                
+                int mapId = mapData.has("mapId") ? mapData.get("mapId").getAsInt() : -1;
+                String mapName = mapData.has("name") ? mapData.get("name").getAsString() : "Unknown";
+                int width = mapData.has("width") ? mapData.get("width").getAsInt() : 0;
+                int height = mapData.has("height") ? mapData.get("height").getAsInt() : 0;
+                
+                log.info("[API_NOTIFICATION] Map info received: {} (id={}, {}x{})", mapName, mapId, width, height);
+                
+                // Create a MapInfoPacket from the JSON data to reuse existing handling
+                MapInfoPacket mapInfo = new MapInfoPacket();
+                mapInfo.mapId = mapId;
+                mapInfo.name = mapName;
+                mapInfo.width = width;
+                mapInfo.height = height;
+                
+                // Parse teleports/portals from mapObjects if present
+                if (mapData.has("mapObjects")) {
+                    JsonArray mapObjects = mapData.getAsJsonArray("mapObjects");
+                    // Count portals first
+                    int portalCount = 0;
+                    for (int i = 0; i < mapObjects.size(); i++) {
+                        JsonObject obj = mapObjects.get(i).getAsJsonObject();
+                        if (obj.has("type") && "portal".equals(obj.get("type").getAsString())) {
+                            portalCount++;
+                        }
+                    }
+                    
+                    if (portalCount > 0) {
+                        mapInfo.teleports = new MapInfoPacket.TPort[portalCount];
+                        int portalIndex = 0;
+                        for (int i = 0; i < mapObjects.size(); i++) {
+                            JsonObject obj = mapObjects.get(i).getAsJsonObject();
+                            if (obj.has("type") && "portal".equals(obj.get("type").getAsString())) {
+                                MapInfoPacket.TPort portal = new MapInfoPacket.TPort();
+                                portal.id = obj.has("id") ? obj.get("id").getAsInt() : 0;
+                                portal.type = obj.has("portalType") ? obj.get("portalType").getAsInt() : 0;
+                                portal.subtype = obj.has("subtype") ? obj.get("subtype").getAsInt() : 0;
+                                portal.x = obj.has("x") ? obj.get("x").getAsInt() : 0;
+                                portal.y = obj.has("y") ? obj.get("y").getAsInt() : 0;
+                                mapInfo.teleports[portalIndex++] = portal;
+                                log.debug("[API_NOTIFICATION] Portal: id={}, type={}, pos=({},{})", 
+                                         portal.id, portal.type, portal.x, portal.y);
+                            }
+                        }
+                    }
+                }
+                
+                // Process the map info using existing handler
+                handleMapChange(mapInfo);
+                
+            } catch (Exception e) {
+                log.error("[API_NOTIFICATION] Failed to parse map-info JSON: {}", e.getMessage(), e);
+            }
+        } else {
+            // Log other notifications for debugging
+            log.debug("[API_NOTIFICATION] Unhandled notification: key='{}', json='{}'", key, 
+                     json != null && json.length() > 100 ? json.substring(0, 100) + "..." : json);
+        }
     }
     
     /**
