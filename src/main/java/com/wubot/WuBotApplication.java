@@ -12,6 +12,7 @@ import com.wubot.network.PacketSender;
 import com.wubot.persistence.PersistenceManager;
 import com.wubot.protocol.PacketProcessor;
 import com.wubot.protocol.packets.GameStateResponsePacket;
+import com.wubot.protocol.packets.MapInfoPacket;
 import com.wubot.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,9 @@ public class WuBotApplication {
     private final AuthManager authManager;
 
     private volatile boolean shuttingDown = false;
+    
+    // Store initial MapInfoPacket received during auth to pass to GameLoop
+    private MapInfoPacket initialMapInfo = null;
 
     public WuBotApplication() {
         this(ClientInfo.createDefault());
@@ -118,6 +122,11 @@ public class WuBotApplication {
         // Setup shutdown hook
         setupShutdownHook();
 
+        // Process initial MapInfoPacket if received during auth
+        if (initialMapInfo != null) {
+            gameLoop.processInitialMapInfo(initialMapInfo);
+        }
+
         // Start game loop (blocks)
         gameLoop.start();
     }
@@ -174,6 +183,11 @@ public class WuBotApplication {
         // Setup shutdown hook
         setupShutdownHook();
 
+        // Process initial MapInfoPacket if received during auth
+        if (initialMapInfo != null) {
+            gameLoop.processInitialMapInfo(initialMapInfo);
+        }
+
         // Start game loop (blocks)
         gameLoop.start();
     }
@@ -196,6 +210,11 @@ public class WuBotApplication {
                     // Process the game state through normal processor
                     processor.process(gameState, world);
                     return true;
+                }
+                // Store MapInfoPacket for later use by GameLoop
+                if (packet instanceof MapInfoPacket mapInfo) {
+                    log.info("MapInfoPacket received during init: {} (id={})", mapInfo.name, mapInfo.mapId);
+                    initialMapInfo = mapInfo;
                 }
                 // Process other packets too
                 processor.process(packet, world);

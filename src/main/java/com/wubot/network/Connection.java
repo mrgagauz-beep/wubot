@@ -51,7 +51,8 @@ public class Connection {
             public void received(com.esotericsoftware.kryonet.Connection connection, Object object) {
                 if (object != null) {
                     incomingQueue.offer(object);
-                    log.trace("Received: {}", object.getClass().getSimpleName());
+                    // Log all received packet types at DEBUG level for debugging
+                    log.debug("Received packet: {}", object.getClass().getSimpleName());
                 }
             }
         });

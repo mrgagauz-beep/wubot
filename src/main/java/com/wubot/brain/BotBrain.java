@@ -360,9 +360,72 @@ public class BotBrain {
         transitionTo(BotState.FARMING);
     }
 
+    // Exploration state tracking
+    private int explorationJumpCount = 0;
+    private int explorationTargetJumps = 2;  // Jump there and back
+    private boolean waitingForMapChange = false;
+    
+    /**
+     * Start exploration mode - teleport to another map and back.
+     */
+    public void startExploration() {
+        explorationJumpCount = 0;
+        waitingForMapChange = false;
+        transitionTo(BotState.EXPLORING);
+        log.info("[EXPLORE] Starting exploration - will teleport {} times", explorationTargetJumps);
+    }
+    
     private void decideExploring(WorldSnapshot world, List<Action> actions) {
-        // TODO: Implement exploration logic
-        log.trace("EXPLORING state");
+        log.debug("[EXPLORE] state - jumpCount={}/{}, waitingForMapChange={}", 
+                  explorationJumpCount, explorationTargetJumps, waitingForMapChange);
+        
+        // Check if exploration is complete
+        if (explorationJumpCount >= explorationTargetJumps) {
+            log.info("[EXPLORE] Exploration complete! {} jumps done. Returning to FARMING.", explorationJumpCount);
+            transitionTo(BotState.FARMING);
+            return;
+        }
+        
+        // If waiting for map change, don't do anything
+        if (waitingForMapChange) {
+            log.debug("[EXPLORE] Waiting for map change confirmation...");
+            return;
+        }
+        
+        // Find nearest portal
+        NavigationBrain.PortalInfo portal = navigationBrain.findNearestPortal(world);
+        if (portal == null) {
+            log.warn("[EXPLORE] No portal found on this map!");
+            transitionTo(BotState.FARMING);
+            return;
+        }
+        
+        // Calculate distance to portal
+        float dist = world.distanceTo(portal.x, portal.y);
+        log.info("[EXPLORE] Portal at ({}, {}), distance={}", portal.x, portal.y, (int) dist);
+        
+        if (dist <= 150f) {
+            // Close enough - teleport!
+            log.info("[EXPLORE] Near portal ({}px), teleporting! (index={})", (int) dist, portal.index);
+            actions.add(new Action.UseTeleport(portal.index));
+            waitingForMapChange = true;
+        } else {
+            // Move towards portal
+            log.info("[EXPLORE] Moving to portal at ({}, {})", portal.x, portal.y);
+            actions.add(new Action.Move(portal.x, portal.y));
+        }
+    }
+    
+    /**
+     * Called when map changes during exploration.
+     */
+    public void onExplorationMapChanged(int newMapId) {
+        if (state == BotState.EXPLORING && waitingForMapChange) {
+            explorationJumpCount++;
+            waitingForMapChange = false;
+            log.info("[EXPLORE] Map changed to {}! Jump {}/{} complete.", 
+                     newMapId, explorationJumpCount, explorationTargetJumps);
+        }
     }
 
     // === Getters ===

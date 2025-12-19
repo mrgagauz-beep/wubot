@@ -37,6 +37,10 @@ public class GameLoop {
 
     private volatile boolean running = false;
     private long tickCount = 0;
+    private boolean explorationStarted = false;
+    
+    /** Enable exploration mode on startup (for testing portal teleportation) */
+    private boolean explorationModeEnabled = false;  // Disabled by default - enable via setExplorationModeEnabled()
 
     public GameLoop(Connection connection, PacketProcessor processor, World world,
                     BotBrain brain, ActionExecutor executor, DiscoveryCollector discovery) {
@@ -188,6 +192,16 @@ public class GameLoop {
         for (Action action : mapChangeActions) {
             executor.execute(action);
         }
+        
+        // Notify brain of map change for exploration mode
+        brain.onExplorationMapChanged(mapInfo.mapId);
+        
+        // Start exploration mode on first map (for testing portal teleportation)
+        if (explorationModeEnabled && !explorationStarted) {
+            explorationStarted = true;
+            log.info("[EXPLORE] Starting exploration mode after initial map load");
+            brain.startExploration();
+        }
     }
 
     // === Getters ===
@@ -198,5 +212,32 @@ public class GameLoop {
 
     public long getTickCount() {
         return tickCount;
+    }
+    
+    /**
+     * Process initial MapInfoPacket received during authentication.
+     * Call this before start() if MapInfoPacket was received during auth.
+     */
+    public void processInitialMapInfo(MapInfoPacket mapInfo) {
+        if (mapInfo != null) {
+            log.info("Processing initial MapInfoPacket: {} (id={})", mapInfo.name, mapInfo.mapId);
+            handleMapChange(mapInfo);
+        }
+    }
+    
+    /**
+     * Enable or disable exploration mode.
+     * When enabled, bot will teleport to another map and back on startup.
+     */
+    public void setExplorationModeEnabled(boolean enabled) {
+        this.explorationModeEnabled = enabled;
+        log.info("Exploration mode: {}", enabled ? "ENABLED" : "DISABLED");
+    }
+    
+    /**
+     * Check if exploration mode is enabled.
+     */
+    public boolean isExplorationModeEnabled() {
+        return explorationModeEnabled;
     }
 }
