@@ -425,9 +425,10 @@ public class BotBrain {
         // Use 90 to have some margin for position jitter
         if (dist <= 90f) {
             // Close enough - teleport!
-            // Send UserActionsPacket(TELEPORT) + TeleportRequestPacket(portalId)
-            log.info("[EXPLORE] Near portal ({}px), teleporting! (index={}, id={})", (int) dist, portal.index, portal.id);
-            actions.add(new Action.UseTeleport(portal.index, portal.id));
+            // Per Wireshark capture: Only send UserActionsPacket with actionId=12 (TELEPORT)
+            // Server determines portal by proximity, no portal ID needed
+            log.info("[EXPLORE] Near portal ({}px), teleporting! (index={})", (int) dist, portal.index);
+            actions.add(new Action.UseTeleport(portal.index));
             waitingForMapChange = true;
             teleportRequestTime = System.currentTimeMillis();
         } else {

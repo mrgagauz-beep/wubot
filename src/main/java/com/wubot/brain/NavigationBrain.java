@@ -93,10 +93,11 @@ public class NavigationBrain {
 
         if (dist <= PORTAL_JUMP_DISTANCE) {
             // Close enough - teleport!
-            log.info("Near portal, teleporting! (index={}, id={})", portal.index, portal.id);
+            // Per Wireshark capture: Server determines portal by proximity, no ID needed
+            log.info("Near portal, teleporting! (index={})", portal.index);
             lastMapId = currentMapId;
             lastPortalIndex = portal.index;
-            actions.add(new Action.UseTeleport(portal.index, portal.id));
+            actions.add(new Action.UseTeleport(portal.index));
         } else {
             // Move towards portal (and beyond - don't stop at it!)
             // Calculate point beyond portal
@@ -146,8 +147,8 @@ public class NavigationBrain {
             // Find portal we're standing on (nearest to player)
             PortalInfo standingPortal = findNearestPortal(world);
             if (standingPortal != null) {
-                log.info("Jumping back through portal index={}, id={}", standingPortal.index, standingPortal.id);
-                actions.add(new Action.UseTeleport(standingPortal.index, standingPortal.id));
+                log.info("Jumping back through portal index={}", standingPortal.index);
+                actions.add(new Action.UseTeleport(standingPortal.index));
             }
         }
 

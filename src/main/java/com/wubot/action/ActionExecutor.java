@@ -77,11 +77,12 @@ public class ActionExecutor {
     }
 
     private void executeTeleport(Action.UseTeleport action) {
-        log.debug("Executing TELEPORT via portal index={}, id={}", action.portalIndex(), action.portalId());
+        log.debug("Executing TELEPORT via portal index={}", action.portalIndex());
         // Notify discovery BEFORE teleport for connection tracking
         discovery.onBeforeTeleport(action.portalIndex());
-        // Send UserActionsPacket(TELEPORT) + TeleportRequestPacket(portalId)
-        sender.teleport(action.portalId());
+        // Per Wireshark capture: Only send UserActionsPacket with actionId=12 (TELEPORT)
+        // Server determines portal based on player position (proximity-based)
+        sender.teleport();
     }
 
     private void executeSwitchConfig(Action.SwitchConfig action) {

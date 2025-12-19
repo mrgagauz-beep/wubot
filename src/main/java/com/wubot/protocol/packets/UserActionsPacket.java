@@ -12,7 +12,9 @@ public class UserActionsPacket {
         public static final int ATTACK = 3;
         public static final int STOP_ATTACK = 4;
         public static final int SWITCH_CONFI = 5;
-        public static final int TELEPORT = 6;
+        // NOTE: Wireshark capture shows teleport uses actionId=12, not 6
+        // The decompiled code had TELEPORT=6, but real client uses 12
+        public static final int TELEPORT = 12;
         public static final int NBOMB = 7;
         public static final int WSHIELD = 8;
         public static final int EMP = 9;

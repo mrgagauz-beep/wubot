@@ -2,7 +2,6 @@ package com.wubot.network;
 
 import com.wubot.protocol.packets.CollectableCollectRequest;
 import com.wubot.protocol.packets.RepairRequestPacket;
-import com.wubot.protocol.packets.TeleportRequestPacket;
 import com.wubot.protocol.packets.UserActionsPacket;
 import com.wubot.protocol.packets.UserActionsPacket.UserAction;
 import com.wubot.protocol.packets.equip.EquipHangarActionRequest;
@@ -129,25 +128,22 @@ public class PacketSender {
      * Send teleport request.
      * Must be near portal (distance < 100)!
      * 
-     * Protocol: Send UserActionsPacket with actionId=TELEPORT, then TeleportRequestPacket with portal ID.
-     * Server determines which portal based on player position and portal ID.
+     * Protocol (from Wireshark capture):
+     * - Client sends ONLY UserActionsPacket with actionId=12 (TELEPORT) and empty data
+     * - Server determines portal based on player position (proximity-based)
+     * - Server responds with TeleportResponsePacket (status=0 for success)
+     * - Server sends map info via ApiNotification JSON (not MapInfoPacket)
      * 
-     * @param portalId ID of portal to teleport through (from TPort.id in MapInfoPacket)
+     * NOTE: TeleportRequestPacket is NOT used - real client only sends UserActionsPacket
      */
-    public void teleport(int portalId) {
-        // Step 1: Send UserActionsPacket with TELEPORT action
-        UserActionsPacket actionPacket = new UserActionsPacket();
+    public void teleport() {
+        UserActionsPacket packet = new UserActionsPacket();
         UserAction action = new UserAction();
-        action.actionId = UserAction.TELEPORT;
-        action.data = "";  // No data needed for teleport action
-        actionPacket.actions = new UserAction[]{action};
-        send(actionPacket);
-        log.info("TELEPORT action sent via UserActionsPacket");
-        
-        // Step 2: Send TeleportRequestPacket with portal ID
-        TeleportRequestPacket teleportPacket = new TeleportRequestPacket(portalId);
-        send(teleportPacket);
-        log.info("TELEPORT request sent for portal ID {}", portalId);
+        action.actionId = UserAction.TELEPORT;  // actionId=12 per Wireshark capture
+        action.data = "";  // Empty string (Kryo encodes as 0x80)
+        packet.actions = new UserAction[]{action};
+        send(packet);
+        log.info("TELEPORT action sent via UserActionsPacket (actionId={})", UserAction.TELEPORT);
     }
 
     /**

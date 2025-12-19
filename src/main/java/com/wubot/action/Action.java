@@ -35,9 +35,11 @@ public sealed interface Action {
     /**
      * Use teleport portal.
      * portalIndex is the array index in teleports[] for discovery tracking.
-     * portalId is the ID from TPort.id for the TeleportRequestPacket.
+     * 
+     * Per Wireshark capture: Server determines portal based on player position (proximity-based).
+     * No portal ID needed - just be near the portal and send TELEPORT action.
      */
-    record UseTeleport(int portalIndex, int portalId) implements Action {}
+    record UseTeleport(int portalIndex) implements Action {}
 
     /**
      * Switch ship configuration (1 or 2).
