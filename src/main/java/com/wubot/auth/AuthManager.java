@@ -8,6 +8,7 @@ import com.wubot.protocol.api.ApiResponsePacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -95,9 +96,11 @@ public class AuthManager {
 
     /**
      * Wait for authentication response.
+     * IMPORTANT: Non-auth packets are stored and returned to the queue after auth completes.
      */
     private boolean waitForAuthResponse(int expectedRequestId) {
         long startTime = System.currentTimeMillis();
+        List<Object> savedPackets = new ArrayList<>();
 
         while (System.currentTimeMillis() - startTime < AUTH_TIMEOUT_MS) {
             List<Object> packets = connection.pollPackets();
@@ -105,9 +108,14 @@ public class AuthManager {
             for (Object packet : packets) {
                 if (packet instanceof ApiResponsePacket response) {
                     if (AUTH_TOKEN_LOGIN_URI.equals(response.getUri())) {
+                        // Return saved packets to queue before returning
+                        connection.returnPackets(savedPackets);
+                        log.debug("Returned {} saved packets to queue after auth", savedPackets.size());
                         return processAuthResponse(response);
                     }
                 }
+                // Save non-auth packets to return later
+                savedPackets.add(packet);
             }
 
             // Small delay to avoid busy waiting
@@ -119,6 +127,8 @@ public class AuthManager {
             }
         }
 
+        // Return saved packets even on timeout
+        connection.returnPackets(savedPackets);
         log.error("Authentication timeout after {} ms", AUTH_TIMEOUT_MS);
         return false;
     }

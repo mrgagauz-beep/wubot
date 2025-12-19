@@ -2,6 +2,7 @@ package com.wubot.network;
 
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Listener;
+import com.wubot.protocol.packets.GameEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,8 +52,14 @@ public class Connection {
             public void received(com.esotericsoftware.kryonet.Connection connection, Object object) {
                 if (object != null) {
                     incomingQueue.offer(object);
-                    // Log all received packet types at DEBUG level for debugging
-                    log.debug("Received packet: {}", object.getClass().getSimpleName());
+                    // Log ALL packet types at INFO level - NO FILTERING
+                    String className = object.getClass().getSimpleName();
+                    // Log GameEvent contents to debug world state issue
+                    if (object instanceof GameEvent ge) {
+                        log.info("[PACKET] GameEvent: id={}, data={}", ge.id, ge);
+                    } else {
+                        log.info("[PACKET] Received: {}", className);
+                    }
                 }
             }
         });
@@ -108,6 +115,22 @@ public class Connection {
             packets.add(packet);
         }
         return packets;
+    }
+
+    /**
+     * Return packets to the front of the queue.
+     * Used when packets need to be preserved during auth/init.
+     *
+     * @param packets packets to return to queue
+     */
+    public void returnPackets(List<Object> packets) {
+        if (packets != null && !packets.isEmpty()) {
+            // Add all packets back to queue
+            for (Object packet : packets) {
+                incomingQueue.offer(packet);
+            }
+            log.debug("Returned {} packets to queue", packets.size());
+        }
     }
 
     /**
