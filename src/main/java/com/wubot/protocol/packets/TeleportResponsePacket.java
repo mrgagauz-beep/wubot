@@ -4,5 +4,5 @@
 package com.wubot.protocol.packets;
 
 public class TeleportResponsePacket {
-    int status;
+    public int status;
 }

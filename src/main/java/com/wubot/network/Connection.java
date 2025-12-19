@@ -4,6 +4,7 @@ import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Listener;
 import com.wubot.protocol.packets.GameEvent;
 import com.wubot.protocol.packets.MapInfoPacket;
+import com.wubot.protocol.packets.TeleportResponsePacket;
 import com.wubot.protocol.packets.UserInfoResponsePacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +73,9 @@ public class Connection {
                                         i, tp.type, tp.subtype, tp.x, tp.y);
                             }
                         }
+                    } else if (object instanceof TeleportResponsePacket teleportResp) {
+                        // Log TeleportResponsePacket - CRITICAL for debugging teleportation
+                        log.info("[PACKET] TeleportResponsePacket: status={}", teleportResp.status);
                     } else if (object instanceof UserInfoResponsePacket userInfo) {
                         // Log UserInfoResponsePacket params - might contain portal activation
                         log.info("[PACKET] UserInfoResponsePacket: {}", userInfo);
